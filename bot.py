@@ -6,10 +6,13 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+
 from utils.config import Config
 from utils.bot_state import BotContext, IdleState, RunningState
 from utils.keyboard_factory import KeyboardFactory
+
 from database.repository import Repository
+
 from services.chat_cache import ChatCacheService, CacheObserver, ChatInfo
 from commands.commands import (
     StartCommand,
@@ -133,14 +136,18 @@ class ForwarderBot(CacheObserver):
         # Callback query handlers
         callbacks = {
             "toggle_forward": self.toggle_forwarding,
+            "toggle_auto_forward": self.toggle_auto_forward,
             "interval_": self.set_interval,
+            "interval_between_": self.set_interval,  # Same handler, different prefix
+            "set_interval_": self.set_interval,  # Same handler, different prefix
             "remove_": self.remove_chat,
             "stats": self.show_stats,
             "list_chats": self.list_chats,
             "back_to_main": self.main_menu,
             "channels": self.manage_channels,
             "add_channel": self.add_channel_prompt,
-            "remove_channel_": self.remove_channel
+            "remove_channel_": self.remove_channel,
+            "channel_intervals": self.manage_channel_intervals,
         }
         
         for prefix, handler in callbacks.items():
@@ -156,6 +163,19 @@ class ForwarderBot(CacheObserver):
         """Handle chat info cache updates"""
         logger.info(f"Chat info updated: {info.title} ({chat_id})")
 
+    async def toggle_auto_forward(self, callback: types.CallbackQuery):
+        """Handler for auto-forward toggle button"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+
+        if isinstance(self.context.state, RunningState):
+            await self.context.state.toggle_auto_forward()
+            await callback.message.edit_text(
+                "Main Menu:",
+                reply_markup=KeyboardFactory.create_main_keyboard(True, self.context.state.auto_forward)
+            )
+        await callback.answer()
+
     async def toggle_forwarding(self, callback: types.CallbackQuery):
         """Handler for forwarding toggle button"""
         if callback.from_user.id != self.config.owner_id:
@@ -169,10 +189,128 @@ class ForwarderBot(CacheObserver):
         await callback.message.edit_text(
             f"Forwarding {'Started' if isinstance(self.context.state, RunningState) else 'Stopped'}!",
             reply_markup=KeyboardFactory.create_main_keyboard(
-                isinstance(self.context.state, RunningState)
+                isinstance(self.context.state, RunningState),
+                isinstance(self.context.state, RunningState) and self.context.state.auto_forward
             )
         )
         await callback.answer()
+
+    # Add these methods to ForwarderBot
+    async def manage_channel_intervals(self, callback: types.CallbackQuery):
+        """Manager for channel intervals"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+            
+        source_channels = self.config.source_channels
+        
+        if len(source_channels) < 2:
+            await callback.message.edit_text(
+                "You need at least 2 channels to set intervals between them.",
+                reply_markup=InlineKeyboardBuilder().button(
+                    text="Back", callback_data="channels"
+                ).as_markup()
+            )
+            await callback.answer()
+            return
+        
+        # Build a keyboard for channel pairs
+        kb = InlineKeyboardBuilder()
+        for i, channel in enumerate(source_channels):
+            if i < len(source_channels) - 1:
+                next_channel = source_channels[i + 1]
+                # Get channel names if possible
+                try:
+                    chat1 = await self.bot.get_chat(channel)
+                    chat2 = await self.bot.get_chat(next_channel)
+                    name1 = (chat1.title or channel)[:8]
+                    name2 = (chat2.title or next_channel)[:8]
+                except Exception:
+                    name1 = channel[:8]
+                    name2 = next_channel[:8]
+                
+                kb.button(
+                    text=f"⏱️ {name1} → {name2}",
+                    callback_data=f"interval_between_{channel}_{next_channel}"
+                )
+        
+        kb.button(text="Back", callback_data="channels")
+        kb.adjust(1)
+        
+        await callback.message.edit_text(
+            "Select channel pair to set forwarding interval:",
+            reply_markup=kb.as_markup()
+        )
+        await callback.answer()
+
+    async def set_channel_interval_prompt(self, callback: types.CallbackQuery):
+        """Prompt for setting interval between channels"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+            
+        # Parse the channel IDs from callback data
+        parts = callback.data.split('_')
+        if len(parts) >= 4:
+            channel1 = parts[2]
+            channel2 = parts[3]
+            
+            # Get channel names for display
+            try:
+                chat1 = await self.bot.get_chat(channel1)
+                chat2 = await self.bot.get_chat(channel2)
+                name1 = chat1.title or channel1
+                name2 = chat2.title or channel2
+            except Exception:
+                name1 = channel1
+                name2 = channel2
+            
+            await callback.message.edit_text(
+                f"Set interval between forwarding from:\n"
+                f"{name1} → {name2}",
+                reply_markup=KeyboardFactory.create_channel_interval_options(channel1, channel2)
+            )
+            await callback.answer()
+        else:
+            await callback.answer("Invalid channel selection")
+
+    async def set_channel_interval(self, callback: types.CallbackQuery):
+        """Set interval between two channels"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+            
+        # Parse data: set_interval_channel1_channel2_seconds
+        parts = callback.data.split('_')
+        if len(parts) >= 5:
+            channel1 = parts[2]
+            channel2 = parts[3]
+            interval = int(parts[4])
+            
+            # Save the interval
+            await Repository.set_channel_interval(channel1, channel2, interval)
+            
+            # Format interval for display
+            display = f"{interval//3600}h" if interval >= 3600 else f"{interval//60}m"
+            
+            # Get channel names for display
+            try:
+                chat1 = await self.bot.get_chat(channel1)
+                chat2 = await self.bot.get_chat(channel2)
+                name1 = chat1.title or channel1
+                name2 = chat2.title or channel2
+            except Exception:
+                name1 = channel1
+                name2 = channel2
+            
+            await callback.message.edit_text(
+                f"✅ Interval set to {display} between:\n"
+                f"{name1} → {name2}",
+                reply_markup=InlineKeyboardBuilder().button(
+                    text="Back to Intervals", callback_data="channel_intervals"
+                ).as_markup()
+            )
+            await callback.answer()
+        else:
+            await callback.answer("Invalid interval selection")
+
 
     async def set_interval(self, callback: types.CallbackQuery):
         """Handler for interval setting"""
@@ -180,26 +318,97 @@ class ForwarderBot(CacheObserver):
             return
 
         data = callback.data
-        if data == "interval_menu":
+        
+        # Check if this is a channel interval callback
+        if "interval_between_" in data:
+            # Handle the channel interval setting UI
+            channel_parts = data.split('_')
+            if len(channel_parts) >= 4:
+                channel1 = channel_parts[2]
+                channel2 = channel_parts[3]
+                
+                # Get channel names for display
+                try:
+                    chat1 = await self.bot.get_chat(channel1)
+                    chat2 = await self.bot.get_chat(channel2)
+                    name1 = chat1.title or channel1
+                    name2 = chat2.title or channel2
+                except Exception:
+                    name1 = channel1
+                    name2 = channel2
+                
+                await callback.message.edit_text(
+                    f"Set interval between forwarding from:\n"
+                    f"{name1} → {name2}",
+                    reply_markup=KeyboardFactory.create_channel_interval_options(channel1, channel2)
+                )
+                await callback.answer()
+            else:
+                await callback.answer("Invalid channel selection")
+        # Check if this is setting a specific channel interval
+        elif "set_interval_" in data:
+            # Parse data: set_interval_channel1_channel2_seconds
+            parts = data.split('_')
+            if len(parts) >= 5:
+                channel1 = parts[2]
+                channel2 = parts[3]
+                interval = int(parts[4])
+                
+                # Save the interval to your database
+                # (You need to implement this function)
+                await Repository.set_channel_interval(channel1, channel2, interval)
+                
+                # Format interval for display
+                display = f"{interval//3600}h" if interval >= 3600 else f"{interval//60}m"
+                
+                # Get channel names for display
+                try:
+                    chat1 = await self.bot.get_chat(channel1)
+                    chat2 = await self.bot.get_chat(channel2)
+                    name1 = chat1.title or channel1
+                    name2 = chat2.title or channel2
+                except Exception:
+                    name1 = channel1
+                    name2 = channel2
+                
+                await callback.message.edit_text(
+                    f"✅ Interval set to {display} between:\n"
+                    f"{name1} → {name2}",
+                    reply_markup=InlineKeyboardBuilder().button(
+                        text="Back to Intervals", callback_data="channel_intervals"
+                    ).as_markup()
+                )
+                await callback.answer()
+            else:
+                await callback.answer("Invalid interval selection")
+        # Regular global interval setting
+        elif data == "interval_menu":
             await callback.message.edit_text(
                 "Select repost interval:",
                 reply_markup=KeyboardFactory.create_interval_keyboard()
             )
         else:
-            interval = int(data.split("_")[1])
-            await Repository.set_config("repost_interval", str(interval))
-            
-            if isinstance(self.context.state, RunningState):
-                await self.context.stop()
-                await self.context.start()
-            
-            display = f"{interval//3600}h" if interval >= 3600 else f"{interval//60}m"
-            await callback.message.edit_text(
-                f"Interval set to {display}",
-                reply_markup=KeyboardFactory.create_main_keyboard(
-                    isinstance(self.context.state, RunningState)
+            # This is the regular interval setting
+            try:
+                interval = int(data.split("_")[1])
+                await Repository.set_config("repost_interval", str(interval))
+                
+                if isinstance(self.context.state, RunningState):
+                    await self.context.stop()
+                    await self.context.start()
+                
+                display = f"{interval//3600}h" if interval >= 3600 else f"{interval//60}m"
+                await callback.message.edit_text(
+                    f"Interval set to {display}",
+            reply_markup=KeyboardFactory.create_main_keyboard(
+                isinstance(self.context.state, RunningState),
+                isinstance(self.context.state, RunningState) and self.context.state.auto_forward
+                    )
                 )
-            )
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing interval: {e}")
+                await callback.answer("Invalid interval format")
+        
         await callback.answer()
 
     async def remove_chat(self, callback: types.CallbackQuery):
@@ -239,7 +448,8 @@ class ForwarderBot(CacheObserver):
         await callback.message.edit_text(
             text,
             reply_markup=KeyboardFactory.create_main_keyboard(
-                isinstance(self.context.state, RunningState)
+                isinstance(self.context.state, RunningState),
+                isinstance(self.context.state, RunningState) and self.context.state.auto_forward
             )
         )
         await callback.answer()
@@ -265,7 +475,8 @@ class ForwarderBot(CacheObserver):
                 "2. Make bot admin in source channels"
             )
             markup = KeyboardFactory.create_main_keyboard(
-                isinstance(self.context.state, RunningState)
+                isinstance(self.context.state, RunningState),
+                isinstance(self.context.state, RunningState) and self.context.state.auto_forward
             )
         else:
             text = "📡 Target Chats:\n\n"
@@ -280,21 +491,13 @@ class ForwarderBot(CacheObserver):
         """Handler for main menu button"""
         if callback.from_user.id != self.config.owner_id:
             return
-            
-        builder = InlineKeyboardBuilder()
-        builder.button(
-            text="🔄 Start Forwarding" if not isinstance(self.context.state, RunningState) else "⏹ Stop Forwarding",
-            callback_data="toggle_forward"
-        )
-        builder.button(text="⚙️ Set Interval", callback_data="interval_menu")
-        builder.button(text="📊 Show Stats", callback_data="stats") 
-        builder.button(text="📡 Manage Channels", callback_data="channels")
-        builder.button(text="📋 List Target Chats", callback_data="list_chats")
-        builder.adjust(2)
         
         await callback.message.edit_text(
             "Main Menu:",
-            reply_markup=builder.as_markup()
+            reply_markup=KeyboardFactory.create_main_keyboard(
+                isinstance(self.context.state, RunningState),
+                isinstance(self.context.state, RunningState) and self.context.state.auto_forward
+            )
         )
         await callback.answer()
 
@@ -302,7 +505,7 @@ class ForwarderBot(CacheObserver):
         """Channel management menu"""
         if callback.from_user.id != self.config.owner_id:
             return
-            
+                
         source_channels = self.config.source_channels
         
         if not source_channels:
@@ -322,12 +525,28 @@ class ForwarderBot(CacheObserver):
                         text += f"• {channel}\n"
                 except Exception:
                     text += f"• {channel}\n"
-            
-            text += "\nAdd more channels using /addchannel command"
-                    
+        
+        # Build extended keyboard with interval option
+        kb = InlineKeyboardBuilder()
+        kb.button(text="➕ Add Channel", callback_data="add_channel")
+        
+        if len(source_channels) >= 2:
+            kb.button(text="⏱️ Set Intervals", callback_data="channel_intervals")
+        
+        # Add remove buttons for each channel
+        for channel in source_channels:
+            display_name = channel[:20] + "..." if len(channel) > 23 else channel
+            kb.button(
+                text=f"❌ {display_name}",
+                callback_data=f"remove_channel_{channel}"
+            )
+        
+        kb.button(text="Back", callback_data="back_to_main")
+        kb.adjust(1)
+        
         await callback.message.edit_text(
             text,
-            reply_markup=KeyboardFactory.create_channel_management_keyboard(source_channels)
+            reply_markup=kb.as_markup()
         )
         await callback.answer()
 

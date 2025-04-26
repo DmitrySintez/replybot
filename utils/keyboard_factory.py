@@ -5,17 +5,21 @@ class KeyboardFactory:
     """Factory Pattern implementation for creating keyboards"""
     
     @staticmethod
-    def create_main_keyboard(running: bool = False) -> Any:
+    def create_main_keyboard(running: bool = False, auto_forward: bool = False) -> Any:
         """Create main menu keyboard"""
         kb = InlineKeyboardBuilder()
         kb.button(
             text="🔄 Start Forwarding" if not running else "⏹ Stop Forwarding",
             callback_data="toggle_forward"
         )
-        kb.button(text="⚙️ Set Interval", callback_data="interval_menu")
+        kb.button(
+            text=f"⚡ Auto Forward: {'ON' if auto_forward else 'OFF'}",
+            callback_data="toggle_auto_forward"
+        )
+        kb.button(text="⏱️ Set Interval", callback_data="interval_menu")
         kb.button(text="📊 Show Stats", callback_data="stats")
-        kb.button(text="📡 Manage Channels", callback_data="channels")
-        kb.button(text="📋 List Target Chats", callback_data="list_chats")
+        kb.button(text="⚙️ Manage Channels", callback_data="channels")
+        kb.button(text="💬 List Target Chats", callback_data="list_chats")
         kb.adjust(2)
         return kb.as_markup()
 
@@ -46,7 +50,46 @@ class KeyboardFactory:
         kb.button(text="Back", callback_data="back_to_main")
         kb.adjust(1)
         return kb.as_markup()
+        # Add to KeyboardFactory
+    @staticmethod
+    def create_channel_interval_keyboard(channels: List[str]) -> Any:
+        """Create keyboard for setting intervals between channels"""
+        kb = InlineKeyboardBuilder()
         
+        # Add buttons for each channel pair
+        for i, channel in enumerate(channels):
+            if i < len(channels) - 1:
+                next_channel = channels[i + 1]
+                display_name1 = channel[:10] + "..." if len(channel) > 13 else channel
+                display_name2 = next_channel[:10] + "..." if len(next_channel) > 13 else next_channel
+                kb.button(
+                    text=f"⏱️ {display_name1} → {display_name2}",
+                    callback_data=f"interval_between_{channel}_{next_channel}"
+                )
+        
+        kb.button(text="Back", callback_data="channels")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @staticmethod
+    def create_channel_interval_options(channel1: str, channel2: str) -> Any:
+        """Create keyboard with interval options between two channels"""
+        kb = InlineKeyboardBuilder()
+        intervals = [
+            ("1m", 60), ("5m", 300), ("10m", 600),
+            ("15m", 900), ("30m", 1800), ("1h", 3600)
+        ]
+        
+        for label, seconds in intervals:
+            kb.button(
+                text=label, 
+                callback_data=f"set_interval_{channel1}_{channel2}_{seconds}"
+            )
+        
+        kb.button(text="Back", callback_data="channel_intervals")
+        kb.adjust(3)
+        return kb.as_markup()
+
     @staticmethod
     def create_channel_management_keyboard(channels: List[str]) -> Any:
         """Create channel management keyboard"""

@@ -25,12 +25,13 @@ class BotState(ABC):
 class IdleState(BotState):
     """State when bot is not forwarding messages"""
     
-    def __init__(self, bot_context):
+    def __init__(self, bot_context, auto_forward: bool = False):
         self.context = bot_context
+        self.auto_forward = auto_forward
     
     async def start(self) -> None:
         interval = int(await Repository.get_config("repost_interval", "3600"))
-        self.context.state = RunningState(self.context, interval)
+        self.context.state = RunningState(self.context, interval, self.auto_forward)
         await self.context._notify_owner("Bot started forwarding")
     
     async def stop(self) -> None:
@@ -44,15 +45,24 @@ class IdleState(BotState):
 class RunningState(BotState):
     """State when bot is actively forwarding messages"""
     
-    def __init__(self, bot_context, interval: int):
+    def __init__(self, bot_context, interval: int, auto_forward: bool = False):
         self.context = bot_context
         self.interval = interval
         self._repost_task: Optional[asyncio.Task] = None
+        self.auto_forward = auto_forward
         self._start_repost_task()
     
     def _start_repost_task(self):
+        # Always start the repost task if it's not running, regardless of auto_forward setting
         if not self._repost_task or self._repost_task.done():
             self._repost_task = asyncio.create_task(self._fallback_repost())
+
+    async def toggle_auto_forward(self):
+        """Toggle automatic message forwarding"""
+        self.auto_forward = not self.auto_forward
+        await self.context._notify_owner(
+            "Automatic forwarding enabled" if self.auto_forward else "Automatic forwarding disabled"
+        )
     
     async def start(self) -> None:
         # Already running
@@ -61,11 +71,15 @@ class RunningState(BotState):
     async def stop(self) -> None:
         if self._repost_task and not self._repost_task.done():
             self._repost_task.cancel()
-        self.context.state = IdleState(self.context)
+        self.auto_forward = False
+        self.context.state = IdleState(self.context, self.auto_forward)
         await self.context._notify_owner("Bot stopped forwarding")
     
     async def handle_message(self, channel_id: str, message_id: int) -> None:
-        await self.context._forward_message(channel_id, message_id)
+        if self.auto_forward:
+            await self.context._forward_message(channel_id, message_id)
+        else:
+            logger.info("Auto-forwarding is disabled, skipping message")
     
     async def _fallback_repost(self):
         """Periodic repost task for most recent message across all channels"""
@@ -74,10 +88,19 @@ class RunningState(BotState):
                 await asyncio.sleep(self.interval)
                 
                 # Get the most recent message across all channels
+                # This line is probably causing the error:
+                last_messages = await Repository.get_all_last_messages()  # Make sure to await this!
+                
+                if not last_messages:
+                    logger.warning("No recent messages found for periodic repost")
+                    continue
+                    
+                # Now you can use .keys() because last_messages is a dictionary, not a coroutine
                 channel_id, message_id = await Repository.get_latest_message()
                 
                 if channel_id and message_id:
-                    await self.handle_message(channel_id, message_id)
+                    # Call _forward_message directly to bypass auto_forward check
+                    await self.context._forward_message(channel_id, message_id)
                     logger.info(f"Triggered periodic repost from channel {channel_id}")
                 else:
                     logger.warning("No recent messages found for periodic repost")
@@ -87,7 +110,7 @@ class RunningState(BotState):
                 break
             except Exception as e:
                 logger.error(f"Error in fallback repost: {e}")
-                await asyncio.sleep(60)
+                await asyncio.sleep(60)  # Wait a bit before trying again
 
 class BotContext:
     """Context class that maintains current bot state"""
