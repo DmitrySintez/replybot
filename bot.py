@@ -53,21 +53,7 @@ class Database:
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS source_channels (
-                    channel_id TEXT PRIMARY KEY,
-                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
             await db.commit()
-
-            # If SOURCE_CHANNEL from env exists, add it as default source
-            if SOURCE_CHANNEL:
-                await db.execute(
-                    "INSERT OR IGNORE INTO source_channels (channel_id) VALUES (?)",
-                    (SOURCE_CHANNEL,)
-                )
-                await db.commit()
 
     @classmethod
     async def get_target_chats(cls):
@@ -136,34 +122,6 @@ class Database:
                 return row[0] if row else None
 
     @classmethod
-    async def add_source_channel(cls, channel_id: str):
-        """Add a new source channel"""
-        async with aiosqlite.connect(cls.DB_PATH) as db:
-            await db.execute(
-                "INSERT OR IGNORE INTO source_channels (channel_id) VALUES (?)",
-                (channel_id,)
-            )
-            await db.commit()
-
-    @classmethod
-    async def remove_source_channel(cls, channel_id: str):
-        """Remove a source channel"""
-        async with aiosqlite.connect(cls.DB_PATH) as db:
-            await db.execute(
-                "DELETE FROM source_channels WHERE channel_id = ?",
-                (channel_id,)
-            )
-            await db.commit()
-
-    @classmethod
-    async def get_source_channels(cls):
-        """Get list of source channels"""
-        async with aiosqlite.connect(cls.DB_PATH) as db:
-            async with db.execute("SELECT channel_id FROM source_channels") as cursor:
-                rows = await cursor.fetchall()
-                return [row[0] for row in rows]
-
-    @classmethod
     async def get_stats(cls):
         async with aiosqlite.connect(cls.DB_PATH) as db:
             total = await db.execute("SELECT COUNT(*) FROM forward_stats")
@@ -205,22 +163,13 @@ class ForwarderBot:
         self.dp.message.register(self.start_command, Command("start"))
         self.dp.message.register(self.help_command, Command("help"))
         
-        # Message handlers
+        # Команды для управления сообщениями
         self.dp.message.register(self.set_last_message_command, Command("setlast"))
         self.dp.message.register(self.get_last_message_command, Command("getlast"))
         self.dp.message.register(self.forward_now_command, Command("forwardnow"))
         self.dp.message.register(self.test_message_command, Command("test"))
-        self.dp.message.register(self.find_last_message_command, Command("findlast"))
-        self.dp.message.register(self.add_channel_command, Command("addchannel"))
-        self.dp.message.register(self.remove_channel_command, Command("removechannel"))
-        self.dp.message.register(self.list_channels_command, Command("listchannels"))
+        self.dp.message.register(self.find_last_message_command, Command("findlast"))  # Новая команда
         
-        # Forward handler for adding channels
-        self.dp.message.register(
-            self.handle_forwarded_channel_message,
-            lambda message: message.forward_from_chat is not None
-        )
-
         # Channel post handler
         self.dp.channel_post.register(self.handle_channel_post)
         
@@ -243,12 +192,6 @@ class ForwarderBot:
         self.dp.callback_query.register(
             self.main_menu, lambda c: c.data == "back_to_main"
         )
-        self.dp.callback_query.register(
-            self.add_channel_menu, lambda c: c.data == "add_channel"
-        )
-        self.dp.callback_query.register(
-            self.list_channels_menu, lambda c: c.data == "list_channels"
-        )
         
         # Handler for bot being added to chats
         self.dp.my_chat_member.register(self.handle_chat_member)
@@ -256,14 +199,12 @@ class ForwarderBot:
     def get_main_keyboard(self):
         kb = InlineKeyboardBuilder()
         kb.button(
-            text="🔄 Запустить рассылку" if not self.running else "⏹ Остановить рассылку",
+            text="🔄 Start Forwarding" if not self.running else "⏹ Stop Forwarding",
             callback_data="toggle_forward"
         )
-        kb.button(text="⚙️ Интервал", callback_data="interval_menu")
-        kb.button(text="📊 Статистика", callback_data="stats")
-        kb.button(text="📋 Список чатов", callback_data="list_chats")
-        kb.button(text="➕ Добавить канал", callback_data="add_channel")
-        kb.button(text="📋 Список каналов", callback_data="list_channels")
+        kb.button(text="⚙️ Set Interval", callback_data="interval_menu")
+        kb.button(text="📊 Show Stats", callback_data="stats")
+        kb.button(text="📋 List Chats", callback_data="list_chats")
         kb.adjust(2)
         return kb.as_markup()
 
@@ -271,26 +212,14 @@ class ForwarderBot:
         """Поиск последнего действительного сообщения в канале"""
         if message.from_user.id != OWNER_ID:
             return
-
-        args = message.text.split()
-        if len(args) != 2:
-            await message.answer("Используйте формат: /findlast <channel_id>")
-            return
-
-        channel_id = args[1].lstrip('@')
-        
-        # Check if channel is in source channels
-        source_channels = await Database.get_source_channels()
-        if channel_id not in source_channels:
-            await message.answer("❌ Указанный канал не является источником")
-            return
             
-        await message.answer(f"🔍 Начинаю поиск последнего действительного сообщения в канале {channel_id}...")
+        await message.answer("🔍 Начинаю поиск последнего действительного сообщения в канале...")
         
-        # Get current saved message ID
-        current_id = await Database.get_last_message(channel_id)
+        # Получаем текущее сохраненное ID сообщения
+        current_id = await Database.get_last_message(SOURCE_CHANNEL)
         if not current_id:
-            current_id = 1  # Start from beginning if no saved ID
+            await message.answer("⚠️ Нет сохраненного ID сообщения. Используйте /setlast, чтобы установить ID вручную.")
+            return
         
         # Начинаем искать от текущего ID в обратном порядке
         start_id = current_id
@@ -322,7 +251,7 @@ class ForwarderBot:
                 try:
                     msg = await self.bot.forward_message(
                         chat_id=OWNER_ID,  # Пересылаем себе для проверки
-                        from_chat_id=channel_id,
+                        from_chat_id=SOURCE_CHANNEL,
                         message_id=msg_id
                     )
                     
@@ -351,10 +280,9 @@ class ForwarderBot:
         
         if valid_id:
             # Сохраняем найденное ID
-            await Database.save_last_message(channel_id, valid_id)
+            await Database.save_last_message(SOURCE_CHANNEL, valid_id)
             await message.answer(
-                f"✅ Найдено действительное сообщение с ID {valid_id} в канале {channel_id}\n"
-                f"после проверки {checked_count} сообщений.\n"
+                f"✅ Найдено действительное сообщение с ID {valid_id} после проверки {checked_count} сообщений.\n"
                 f"Этот ID теперь установлен как последнее сообщение для периодической рассылки."
             )
         else:
@@ -367,29 +295,26 @@ class ForwarderBot:
             return
         
         await message.answer(
-            "Бот для пересылки сообщений из каналов!\n"
-            "Используйте кнопки ниже для управления ботом:\n\n"
-            "Напишите /help для просмотра списка команд.",
+            "Welcome to Channel Forwarder Bot!\n"
+            "Use the buttons below to control the bot:\n\n"
+            "Type /help to see available commands.",
             reply_markup=self.get_main_keyboard()
         )
     
     async def help_command(self, message: types.Message):
         if message.from_user.id != OWNER_ID:
             return
-        
+            
         help_text = (
-            "📋 <b>Доступные команды:</b>\n\n"
-            "/start - Показать главное меню\n"
-            "/help - Показать это сообщение\n"
-            "/setlast <channel_id> <message_id> - Установить ID последнего сообщения\n"
-            "/getlast <channel_id> - Получить текущий ID последнего сообщения\n"
-            "/forwardnow - Переслать последние сообщения сейчас\n"
-            "/test <channel_id> <message_id> - Проверить существование сообщения\n"
-            "/findlast <channel_id> - Найти последнее сообщение автоматически\n"
-            "/addchannel <channel_id> - Добавить канал-источник\n"
-            "/removechannel <channel_id> - Удалить канал-источник\n"
-            "/listchannels - Список каналов-источников\n\n"
-            "Используйте кнопки меню для управления рассылкой."
+            "📋 <b>Available commands:</b>\n\n"
+            "/start - Show main menu\n"
+            "/help - Show this help message\n"
+            "/setlast <message_id> - Set the last message ID manually\n"
+            "/getlast - Get current last message ID\n"
+            "/forwardnow - Forward last saved message immediately\n"
+            "/test <message_id> - Test if a message ID exists in channel\n"
+            "/findlast - Automatically find the last valid message in channel\n\n"
+            "Use buttons in the menu to control forwarding and settings."
         )
         
         await message.answer(help_text, parse_mode="HTML")
@@ -399,20 +324,14 @@ class ForwarderBot:
         if message.from_user.id != OWNER_ID:
             return
             
+        # Парсим ID сообщения из команды
         args = message.text.split()
-        if len(args) != 3:
-            await message.answer("Используйте формат: /setlast <channel_id> <message_id>")
+        if len(args) != 2:
+            await message.answer("Используйте формат: /setlast <message_id>")
             return
             
         try:
-            channel_id = args[1].lstrip('@')
-            message_id = int(args[2])
-            
-            # Check if channel is in source channels
-            source_channels = await Database.get_source_channels()
-            if channel_id not in source_channels:
-                await message.answer("❌ Указанный канал не является источником")
-                return
+            message_id = int(args[1])
             
             # Проверяем, существует ли сообщение
             try:
@@ -420,7 +339,7 @@ class ForwarderBot:
                 try:
                     test_message = await self.bot.forward_message(
                         chat_id=OWNER_ID,
-                        from_chat_id=channel_id,
+                        from_chat_id=SOURCE_CHANNEL,
                         message_id=message_id
                     )
                     # Если дошли сюда - сообщение существует
@@ -433,8 +352,8 @@ class ForwarderBot:
                 await message.answer(f"⚠️ Предупреждение: Не удалось проверить существование сообщения, но ID будет сохранен.")
             
             # Сохраняем ID сообщения
-            await Database.save_last_message(channel_id, message_id)
-            await message.answer(f"✅ ID последнего сообщения установлен на {message_id} для канала {channel_id}")
+            await Database.save_last_message(SOURCE_CHANNEL, message_id)
+            await message.answer(f"✅ ID последнего сообщения установлен на {message_id}")
             
         except ValueError:
             await message.answer("❌ ID сообщения должен быть числом")
@@ -443,82 +362,60 @@ class ForwarderBot:
         """Получение текущего сохраненного ID сообщения"""
         if message.from_user.id != OWNER_ID:
             return
-
-        args = message.text.split()
-        if len(args) != 2:
-            await message.answer("Используйте формат: /getlast <channel_id>")
-            return
-
-        channel_id = args[1].lstrip('@')
-        
-        # Check if channel is in source channels
-        source_channels = await Database.get_source_channels()
-        if channel_id not in source_channels:
-            await message.answer("❌ Указанный канал не является источником")
-            return
             
-        last_message_id = await Database.get_last_message(channel_id)
+        last_message_id = await Database.get_last_message(SOURCE_CHANNEL)
         if last_message_id:
-            await message.answer(f"📝 Текущий ID последнего сообщения для канала {channel_id}: {last_message_id}")
+            await message.answer(f"📝 Текущий ID последнего сообщения: {last_message_id}")
         else:
-            await message.answer(f"⚠️ ID последнего сообщения не найден для канала {channel_id}")
+            await message.answer("⚠️ ID последнего сообщения не найден в базе данных.")
     
     async def forward_now_command(self, message: types.Message):
-        """Немедленная пересылка последних сохраненных сообщений из всех каналов"""
+        """Немедленная пересылка последнего сохраненного сообщения"""
         if message.from_user.id != OWNER_ID:
             return
             
-        source_channels = await Database.get_source_channels()
-        if not source_channels:
-            await message.answer("⚠️ Нет настроенных каналов-источников")
+        last_message_id = await Database.get_last_message(SOURCE_CHANNEL)
+        if not last_message_id:
+            await message.answer("⚠️ ID последнего сообщения не найден в базе данных. Используйте /setlast для установки.")
             return
             
-        success = False
-        for channel_id in source_channels:
-            last_message_id = await Database.get_last_message(channel_id)
-            if last_message_id:
-                await message.answer(f"🔄 Начинаю пересылку сообщения ID: {last_message_id} из канала {channel_id}...")
-                if await self.repost_saved_message(last_message_id, channel_id):
-                    success = True
-
+        await message.answer(f"🔄 Начинаю пересылку сообщения ID: {last_message_id}...")
+        
+        success = await self.repost_saved_message(last_message_id)
         if success:
-            await message.answer("✅ Сообщения успешно пересланы во все активные чаты.")
+            await message.answer("✅ Сообщение успешно переслано во все активные чаты.")
         else:
-            await message.answer("❌ Не удалось переслать сообщения ни из одного канала.")
+            await message.answer("❌ Не удалось переслать сообщение ни в один чат.")
     
     async def test_message_command(self, message: types.Message):
         """Тестирование существования сообщения в канале"""
         if message.from_user.id != OWNER_ID:
             return
             
+        # Парсим ID сообщения из команды
         args = message.text.split()
-        if len(args) != 3:
-            await message.answer("Используйте формат: /test <channel_id> <message_id>")
+        if len(args) != 2:
+            await message.answer("Используйте формат: /test <message_id>")
             return
             
         try:
-            channel_id = args[1].lstrip('@')
-            message_id = int(args[2])
-            
-            source_channels = await Database.get_source_channels()
-            if channel_id not in source_channels:
-                await message.answer("❌ Указанный канал не является источником")
-                return
+            message_id = int(args[1])
             
             # Пробуем переслать сообщение владельцу для проверки
             try:
-                await message.answer(f"🔍 Проверяю сообщение ID {message_id} в канале {channel_id}...")
+                await message.answer(f"🔍 Проверяю сообщение ID {message_id}...")
                 
+                # Пробуем переслать сообщение владельцу
                 forwarded = await self.bot.forward_message(
                     chat_id=OWNER_ID,
-                    from_chat_id=channel_id,
+                    from_chat_id=SOURCE_CHANNEL,
                     message_id=message_id
                 )
                 
                 if forwarded:
                     await message.answer(f"✅ Сообщение ID {message_id} существует и доступно для пересылки!")
                 else:
-                    await message.answer("⚠️ Проблема с пересылкой сообщения.")
+                    await message.answer(f"⚠️ Проблема с копированием сообщения {message_id}.")
             except Exception as e:
                 await message.answer(f"❌ Ошибка при проверке сообщения: {e}")
                 
@@ -541,7 +438,7 @@ class ForwarderBot:
         
         try:
             await callback.message.edit_text(
-                f"Рассылка {'запущена' if status == 'Started' else 'остановлена'}!",
+                f"Forwarding {status}!",
                 reply_markup=self.get_main_keyboard()
             )
         except Exception as e:
@@ -568,12 +465,12 @@ class ForwarderBot:
                     text=label,
                     callback_data=f"interval_{seconds}"
                 )
-            kb.button(text="↩️ Назад", callback_data="back_to_main")
+            kb.button(text="Back", callback_data="back_to_main")
             kb.adjust(3)
             
             try:
                 await callback.message.edit_text(
-                    "Выберите интервал рассылки:",
+                    "Select repost interval:",
                     reply_markup=kb.as_markup()
                 )
             except Exception as e:
@@ -595,7 +492,7 @@ class ForwarderBot:
                     display = f"{interval//3600}h"
                     
                 await callback.message.edit_text(
-                    f"Интервал установлен: {display}",
+                    f"Interval set to {display}",
                     reply_markup=self.get_main_keyboard()
                 )
             except Exception as e:
@@ -611,7 +508,7 @@ class ForwarderBot:
         chat_id = int(callback.data.split("_")[1])
         await Database.remove_target_chat(chat_id)
         await self.list_chats(callback)
-        await callback.answer("Чат удален!")
+        await callback.answer("Chat removed!")
 
     async def list_chats(self, callback: types.CallbackQuery):
         if callback.from_user.id != OWNER_ID:
@@ -622,22 +519,22 @@ class ForwarderBot:
         
         chats = await Database.get_target_chats()
         if not chats:
-            text = "Нет настроенных целевых чатов.\nУбедитесь что:\n1. Бот добавлен в целевые чаты\n2. Бот является администратором в каналах-источниках"
+            text = "No target chats configured.\nMake sure to:\n1. Add bot to target chats\n2. Make bot admin in source channel"
         else:
-            text = "📡 Целевые чаты:\n\n"
+            text = "📡 Target Chats:\n\n"
             for chat_id in chats:
                 try:
                     chat = await self.bot.get_chat(chat_id)
                     members = await self.bot.get_chat_member_count(chat_id)
                     text += f"• {chat.title}\n  ID: {chat_id}\n  Type: {chat.type}\n  Members: {members}\n\n"
                 except Exception as e:
-                    text += f"• Неизвестный чат ({chat_id})\n  Ошибка: {str(e)}\n\n"
-                    logger.error(f"Ошибка получения информации о чате: {e}")
+                    text += f"• Unknown chat ({chat_id})\n  Error: {str(e)}\n\n"
+                    logger.error(f"Error getting chat info: {e}")
         
         kb = InlineKeyboardBuilder()
         for chat_id in chats:
             kb.button(
-                text=f"❌ Удалить {chat_id}",
+                text=f"❌ Remove {chat_id}",
                 callback_data=f"remove_{chat_id}"
             )
         kb.button(text="Back", callback_data="back_to_main")
@@ -663,13 +560,13 @@ class ForwarderBot:
         last_messages_text = ""
         if stats.get("last_messages"):
             for channel_id, data in stats["last_messages"].items():
-                last_messages_text += f"Канал: {channel_id}\nID сообщения: {data['message_id']}\nВремя: {data['timestamp']}\n\n"
+                last_messages_text += f"Channel: {channel_id}\nMessage ID: {data['message_id']}\nTimestamp: {data['timestamp']}\n\n"
         
         text = (
-            "📊 Статистика рассылки\n\n"
-            f"Всего пересланных сообщений: {stats['total_forwards']}\n"
-            f"Последняя рассылка: {stats['last_forward'] or 'Никогда'}\n\n"
-            f"Последние сохраненные сообщения:\n{last_messages_text or 'Нет'}"
+            "📊 Forwarding Statistics\n\n"
+            f"Total forwards: {stats['total_forwards']}\n"
+            f"Last forward: {stats['last_forward'] or 'Never'}\n\n"
+            f"Last saved messages:\n{last_messages_text or 'None'}"
         )
         
         try:
@@ -684,54 +581,42 @@ class ForwarderBot:
 
     async def handle_channel_post(self, message: types.Message | None):
         if not self.running:
-            logger.info("Бот не запущен, игнорирую сообщение")
+            logger.info("Bot is not running, ignoring post")
             return
 
         if message is None:
-            # Получаем все каналы-источники
-            source_channels = await Database.get_source_channels()
-            if not source_channels:
-                logger.warning("Нет настроенных каналов-источников")
+            # Это периодическая пересылка - используем сохраненный ID последнего сообщения
+            last_message_id = await Database.get_last_message(SOURCE_CHANNEL)
+            if not last_message_id:
+                logger.warning("Нет сохраненного ID последнего сообщения для повторной отправки")
                 return
-
-            success = False
-            for channel_id in source_channels:
-                last_message_id = await Database.get_last_message(channel_id)
-                if last_message_id:
-                    logger.info(f"Повторная отправка сообщения ID: {last_message_id} из канала {channel_id}")
-                    if await self.repost_saved_message(last_message_id, channel_id):
-                        success = True
-
-            if not success:
-                logger.warning("Не удалось переслать сообщения ни из одного канала")
+                
+            logger.info(f"Повторная отправка сообщения ID: {last_message_id}")
+            await self.repost_saved_message(last_message_id)
             return
 
         # Handle normal channel post
         chat_id = str(message.chat.id)
         username = message.chat.username
         
-        # Check if message is from any of our source channels
-        source_channels = await Database.get_source_channels()
-        source_channel = None
-
-        for sc in source_channels:
-            if chat_id == sc or (username and username.lower() == sc.lstrip('@').lower()):
-                source_channel = sc
-                break
-
-        if not source_channel:
-            logger.info(f"Сообщение не из канала-источника. Получено от {chat_id}/{username}")
+        is_source = (
+            chat_id == SOURCE_CHANNEL or 
+            (username and username.lower() == SOURCE_CHANNEL.lower())
+        )
+            
+        if not is_source:
+            logger.info(f"Message not from source channel. Got {chat_id}/{username}, expected {SOURCE_CHANNEL}")
             return
         
-        logger.info(f"Пересылка сообщения {message.message_id} во все целевые чаты")
+        logger.info(f"Forwarding channel post {message.message_id} to all target chats")
         
         # Сохраняем ID этого сообщения как последнее из канала
-        await Database.save_last_message(source_channel, message.message_id)
+        await Database.save_last_message(SOURCE_CHANNEL, message.message_id)
         
         # Пересылаем сообщение во все целевые чаты
         await self.forward_to_all(message)
 
-    async def repost_saved_message(self, message_id: int, source_channel: str):
+    async def repost_saved_message(self, message_id: int):
         """
         Повторно отправляет сохраненное сообщение из исходного канала во все целевые чаты
         """
@@ -757,7 +642,7 @@ class ForwarderBot:
                 # Пересылаем сообщение
                 sent_message = await self.bot.forward_message(
                     chat_id=chat_id,
-                    from_chat_id=source_channel,
+                    from_chat_id=SOURCE_CHANNEL,
                     message_id=message_id
                 )
                 
@@ -807,7 +692,7 @@ class ForwarderBot:
                 
                 # Only forward to groups and supergroups
                 if chat.type not in ['group', 'supergroup']:
-                    logger.info(f"Пропускаю пересылку в {chat.type} {chat_id}")
+                    logger.info(f"Skipping forward to {chat.type} {chat_id}")
                     continue
                 
                 await self.bot.forward_message(
@@ -816,9 +701,9 @@ class ForwarderBot:
                     message_id=message.message_id
                 )
                 await Database.log_forward(message.message_id)
-                logger.info(f"Переслано в {chat.type} {chat.title} ({chat_id})")
+                logger.info(f"Forwarded to {chat.type} {chat.title} ({chat_id})")
             except Exception as e:
-                logger.error(f"Ошибка пересылки в {chat_id}: {e}")
+                logger.error(f"Error forwarding to {chat_id}: {e}")
                 continue
 
 
@@ -835,174 +720,25 @@ class ForwarderBot:
                 try:
                     # Вызываем периодическую пересылку
                     await self.handle_channel_post(None)
-                    logger.info("Запущена периодическая рассылка")
+                    logger.info("Triggered periodic repost")
                 except Exception as e:
-                    logger.error(f"Не удалось запустить рассылку: {e}")
+                    logger.error(f"Failed to trigger repost: {e}")
                 
             except asyncio.CancelledError:
-                logger.info("Задача рассылки отменена")
+                logger.info("Repost task cancelled")
                 break
             except Exception as e:
-                logger.error(f"Ошибка при выполнении резервной рассылки: {e}")
+                logger.error(f"Error in fallback repost: {e}")
                 await asyncio.sleep(60)  # Wait before retry
-
-    async def add_channel_command(self, message: types.Message):
-        """Add a new source channel"""
-        if message.from_user.id != OWNER_ID:
-            return
-
-        args = message.text.split()
-        if len(args) != 2:
-            await message.answer("Используйте формат: /addchannel <channel_id или @username>")
-            return
-
-        channel_id = args[1].lstrip('@')
-        
-        try:
-            # Try to get channel info
-            chat = await self.bot.get_chat(channel_id)
-            if chat.type != 'channel':
-                await message.answer("❌ Указанный ID не является каналом")
-                return
-
-            # Check bot's rights in the channel
-            bot_member = await self.bot.get_chat_member(chat.id, self.bot.id)
-            if bot_member.status not in ['administrator']:
-                await message.answer("❌ Бот должен быть администратором канала")
-                return
-
-            # Add to database
-            await Database.add_source_channel(str(chat.id))
-            await message.answer(f"✅ Канал {chat.title} успешно добавлен как источник")
-            
-        except Exception as e:
-            await message.answer(f"❌ Ошибка при добавлении канала: {e}")
-
-    async def remove_channel_command(self, message: types.Message):
-        """Remove a source channel"""
-        if message.from_user.id != OWNER_ID:
-            return
-
-        args = message.text.split()
-        if len(args) != 2:
-            await message.answer("Используйте формат: /removechannel <channel_id или @username>")
-            return
-
-        channel_id = args[1].lstrip('@')
-        
-        try:
-            await Database.remove_source_channel(channel_id)
-            await message.answer(f"✅ Канал {channel_id} удален из источников")
-        except Exception as e:
-            await message.answer(f"❌ Ошибка при удалении канала: {e}")
-
-    async def list_channels_command(self, message: types.Message):
-        """List all source channels"""
-        if message.from_user.id != OWNER_ID:
-            return
-
-        channels = await Database.get_source_channels()
-        if not channels:
-            await message.answer("ℹ️ Нет настроенных каналов-источников")
-            return
-
-        text = "📋 Каналы-источники:\n\n"
-        for channel_id in channels:
-            try:
-                chat = await self.bot.get_chat(channel_id)
-                bot_member = await self.bot.get_chat_member(channel_id, self.bot.id)
-                text += (f"• {chat.title}\n"
-                        f"  ID: {channel_id}\n"
-                        f"  Статус бота: {bot_member.status}\n\n")
-            except Exception as e:
-                text += f"• {channel_id}\n  ⚠️ Ошибка доступа: {str(e)}\n\n"
-
-        await message.answer(text)
 
     async def main_menu(self, callback: types.CallbackQuery):
         if callback.from_user.id != OWNER_ID:
             return
         try:
             await callback.message.edit_text(
-                "Главное меню:",
+                "Main Menu:",
                 reply_markup=self.get_main_keyboard()
             )
-        except Exception as e:
-            if "message is not modified" not in str(e):
-                raise
-        await callback.answer()
-
-    async def add_channel_menu(self, callback: types.CallbackQuery):
-        """Обработчик кнопки добавления канала"""
-        if callback.from_user.id != OWNER_ID:
-            return
-        
-        kb = InlineKeyboardBuilder()
-        kb.button(text="↩️ Назад", callback_data="back_to_main")
-        kb.adjust(1)
-        
-        await callback.message.edit_text(
-            "📝 Для добавления канала:\n\n"
-            "1. Добавьте бота администратором в канал\n"
-            "2. Перешлите любое сообщение из канала сюда\n"
-            "или отправьте команду:\n"
-            "/addchannel <ID канала или @username>",
-            reply_markup=kb.as_markup()
-        )
-        await callback.answer()
-
-    async def handle_forwarded_channel_message(self, message: types.Message):
-        """Обработка пересланных сообщений для добавления канала"""
-        if message.from_user.id != OWNER_ID:
-            return
-
-        if not message.forward_from_chat or message.forward_from_chat.type != 'channel':
-            await message.answer("❌ Перешлите сообщение именно из канала")
-            return
-
-        channel = message.forward_from_chat
-        try:
-            # Проверяем права бота в канале
-            bot_member = await self.bot.get_chat_member(channel.id, self.bot.id)
-            if bot_member.status not in ['administrator']:
-                await message.answer("❌ Бот должен быть администратором канала")
-                return
-
-            # Добавляем канал
-            await Database.add_source_channel(str(channel.id))
-            await message.answer(
-                f"✅ Канал {channel.title} успешно добавлен как источник\n"
-                f"ID: {channel.id}"
-            )
-        except Exception as e:
-            await message.answer(f"❌ Ошибка при добавлении канала: {e}")
-
-    async def list_channels_menu(self, callback: types.CallbackQuery):
-        """Обработчик кнопки списка каналов"""
-        if callback.from_user.id != OWNER_ID:
-            return
-
-        channels = await Database.get_source_channels()
-        if not channels:
-            text = "ℹ️ Нет настроенных каналов-источников"
-        else:
-            text = "📋 Каналы-источники:\n\n"
-            for channel_id in channels:
-                try:
-                    chat = await self.bot.get_chat(channel_id)
-                    bot_member = await self.bot.get_chat_member(channel_id, self.bot.id)
-                    text += (f"• {chat.title}\n"
-                            f"  ID: {channel_id}\n"
-                            f"  Статус бота: {bot_member.status}\n\n")
-                except Exception as e:
-                    text += f"• {channel_id}\n  ⚠️ Ошибка доступа: {str(e)}\n\n"
-
-        kb = InlineKeyboardBuilder()
-        kb.button(text="↩️ Назад", callback_data="back_to_main")
-        kb.adjust(1)
-
-        try:
-            await callback.message.edit_text(text, reply_markup=kb.as_markup())
         except Exception as e:
             if "message is not modified" not in str(e):
                 raise
@@ -1037,59 +773,40 @@ class ForwarderBot:
         try:
             await self.bot.send_message(
                 OWNER_ID,
-                f"Бот {'добавлен в' if update.new_chat_member.status in ['member', 'administrator'] else 'удален из'} "
+                f"Bot {'added to' if update.new_chat_member.status in ['member', 'administrator'] else 'removed from'} "
                 f"{update.chat.type} {update.chat.id}"
             )
         except Exception as e:
-            logger.error(f"Не удалось уведомить владельца: {e}")
+            logger.error(f"Failed to notify owner: {e}")
 
     async def verify_channel_access(self):
-        """Verify access to all configured source channels"""
         try:
-            source_channels = await Database.get_source_channels()
-            if not source_channels:
-                logger.warning("Нет настроенных каналов-источников, бот может быть запущен и настроен позже")
-                return True
-
-            all_access_ok = True
-            access_errors = []
-
-            for channel_id in source_channels:
-                try:
-                    # Try to get channel info
-                    channel = await self.bot.get_chat(channel_id)
-                    logger.info(f"Checking access to channel: {channel.title} ({channel.id})")
-                    
-                    # Try to get channel member count to verify admin rights
-                    member_count = await self.bot.get_chat_member_count(channel_id)
-                    logger.info(f"Channel {channel_id} member count: {member_count}")
-                    
-                    # Check bot's rights in the channel
-                    bot_member = await self.bot.get_chat_member(channel_id, self.bot.id)
-                    logger.info(f"Bot status in channel {channel_id}: {bot_member.status}")
-                    
-                    if bot_member.status not in ['administrator']:
-                        access_errors.append(f"Bot needs admin rights in channel {channel.title}")
-                        all_access_ok = False
-                        
-                except Exception as e:
-                    access_errors.append(f"Failed to access channel {channel_id}: {e}")
-                    all_access_ok = False
-                    continue
+            # Try to get channel info
+            channel = await self.bot.get_chat(SOURCE_CHANNEL)
+            logger.info(f"Successfully connected to channel: {channel.title} ({channel.id})")
             
-            if access_errors:
-                error_msg = "⚠️ Channel access check results:\n" + "\n".join(access_errors)
-                try:
-                    await self.bot.send_message(OWNER_ID, error_msg)
-                except Exception as e:
-                    logger.error(f"Не удалось отправить результаты проверки доступа владельцу: {e}")
-            elif all_access_ok:
-                await self.bot.send_message(OWNER_ID, "✅ Successfully connected to all source channels")
-
-            return all_access_ok
+            # Try to get channel member count to verify admin rights
+            member_count = await self.bot.get_chat_member_count(SOURCE_CHANNEL)
+            logger.info(f"Channel member count: {member_count}")
+            
+            # Проверяем права бота в канале
+            bot_member = await self.bot.get_chat_member(SOURCE_CHANNEL, self.bot.id)
+            logger.info(f"Bot status in channel: {bot_member.status}")
+            
+            # Проверяем можем ли мы посылать служебные сообщения
+            try:
+                await self.bot.send_message(
+                    OWNER_ID,
+                    f"✅ Successfully connected to channel {channel.title} ({channel.id})"
+                )
+                return True
+            except Exception as e:
+                logger.warning(f"Failed to send test message to owner: {e}")
+                # Продолжаем работу, потому что это не критическая ошибка
+                return True
             
         except Exception as e:
-            logger.error(f"Failed to verify channel access: {e}")
+            logger.error(f"Failed to access channel {SOURCE_CHANNEL}: {e}")
             return False
 
     async def register_existing_chats(self):
@@ -1107,7 +824,7 @@ class ForwarderBot:
                         logger.info(f"Registered existing chat: {chat.title} ({chat.id})")
                         registered.add(chat.id)
         except Exception as e:
-            logger.error(f"Ошибка при регистрации существующих чатов: {e}")
+            logger.error(f"Error registering existing chats: {e}")
 
     async def start(self):
         await Database.init_db()
@@ -1126,7 +843,7 @@ class ForwarderBot:
         if not await Database.get_config("repost_interval"):
             await Database.set_config("repost_interval", "3600")
         
-        logger.info("Бот успешно запущен!")
+        logger.info("Bot started successfully!")
         try:
             # Get the last update ID to avoid duplicate updates
             offset = 0
@@ -1135,9 +852,9 @@ class ForwarderBot:
                 if updates:
                     offset = updates[-1].update_id + 1
             except Exception as e:
-                logger.warning(f"Не удалось получить начальные обновления: {e}")
+                logger.warning(f"Failed to get initial updates: {e}")
 
-            logger.info(f"Запуск получения обновлений с отступом {offset}")
+            logger.info(f"Starting polling with offset {offset}")
             await self.dp.start_polling(self.bot, offset=offset)
         finally:
             await self.bot.session.close()
@@ -1158,9 +875,9 @@ async def main():
         except (ProcessLookupError, ValueError):
             # Process not running, clean up stale lock file
             os.remove(lock_file)
-            logger.info("Удален устаревший файл блокировки")
+            logger.info("Cleaned up stale lock file")
         except PermissionError:
-            logger.error("Невозможно получить доступ к файлу блокировки")
+            logger.error("Cannot access lock file")
             return
 
     # Create lock file with current PID
@@ -1168,7 +885,7 @@ async def main():
         with open(lock_file, 'w') as f:
             f.write(str(os.getpid()))
     except Exception as e:
-        logger.error(f"Не удалось создать файл блокировки: {e}")
+        logger.error(f"Failed to create lock file: {e}")
         return
 
     try:
@@ -1179,7 +896,7 @@ async def main():
         try:
             os.remove(lock_file)
         except Exception as e:
-            logger.error(f"Не удалось удалить файл блокировки: {e}")
+            logger.error(f"Failed to remove lock file: {e}")
 
 if __name__ == "__main__":
     try:

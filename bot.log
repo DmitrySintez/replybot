@@ -592,3 +592,16 @@
 2025-04-24 17:40:27.146 | INFO     | __main__:fallback_repost:843 - Задача рассылки отменена
 2025-04-24 17:44:13.141 | INFO     | __main__:fallback_repost:843 - Задача рассылки отменена
 2025-04-24 17:44:13.141 | INFO     | __main__:<module>:1188 - Bot stopped by user
+2025-04-24 17:46:01.636 | INFO     | __main__:verify_channel_access:786 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 17:46:01.737 | INFO     | __main__:verify_channel_access:790 - Channel member count: 8
+2025-04-24 17:46:01.839 | INFO     | __main__:verify_channel_access:794 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 17:46:03.153 | INFO     | __main__:start:846 - Bot started successfully!
+2025-04-24 17:46:06.255 | INFO     | __main__:start:857 - Starting polling with offset 0
+2025-04-24 17:46:06.452 | INFO     | __main__:handle_channel_post:584 - Bot is not running, ignoring post
+2025-04-24 17:46:14.718 | INFO     | __main__:handle_channel_post:611 - Forwarding channel post 65 to all target chats
+2025-04-24 17:46:14.726 | INFO     | __main__:save_last_message:111 - Saved last message ID 65 for channel -1002542068593
+2025-04-24 17:46:15.086 | INFO     | __main__:forward_to_all:704 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 17:46:15.190 | INFO     | __main__:forward_to_all:695 - Skipping forward to channel -1002542068593
+2025-04-24 17:46:15.508 | INFO     | __main__:forward_to_all:704 - Forwarded to group чат2 (-4631733408)
+2025-04-26 14:58:47.405 | ERROR    | __main__:<module>:907 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-26 14:59:24.489 | ERROR    | __main__:<module>:1190 - Bot stopped due to error: [WinError 87] The parameter is incorrect
