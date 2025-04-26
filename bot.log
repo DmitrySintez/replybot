@@ -1,0 +1,594 @@
+2025-04-23 20:29:54,938 - INFO - Initializing MessageForwarder
+2025-04-23 20:29:54,939 - INFO - Loaded configuration: {'source_channels': [], 'target_chats': [], 'last_message_ids': {}}
+2025-04-23 20:29:54,939 - INFO - Starting bot
+2025-04-23 20:29:54,939 - INFO - Creating application
+2025-04-23 20:29:55,501 - INFO - Setting up command handlers
+2025-04-23 20:29:55,502 - INFO - Setting up message checking job
+2025-04-23 20:29:55,504 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-04-23 20:29:55,504 - INFO - Starting message polling
+2025-04-23 20:29:56,378 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getMe "HTTP/1.1 200 OK"
+2025-04-23 20:29:56,756 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/deleteWebhook "HTTP/1.1 200 OK"
+2025-04-23 20:29:56,757 - INFO - Added job "check_new_messages" to job store "default"
+2025-04-23 20:29:56,757 - INFO - Scheduler started
+2025-04-23 20:29:56,757 - INFO - Application started
+2025-04-23 20:30:04,554 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:30:04,555 - INFO - Start command received from user 8093896404
+2025-04-23 20:30:05,265 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/sendMessage "HTTP/1.1 200 OK"
+2025-04-23 20:30:06,484 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:30:06,486 - INFO - Add channel command received from user 8093896404
+2025-04-23 20:30:06,487 - WARNING - User 8093896404 tried to add channel without providing ID
+2025-04-23 20:30:06,764 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/sendMessage "HTTP/1.1 200 OK"
+2025-04-23 20:30:11,491 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:30:21,705 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:30:25,519 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:30:55 UTC)" (scheduled at 2025-04-23 17:30:25.503008+00:00)
+2025-04-23 20:30:25,519 - INFO - Starting message check cycle
+2025-04-23 20:30:25,519 - INFO - Finished message check cycle
+2025-04-23 20:30:25,520 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:30:55 UTC)" executed successfully
+2025-04-23 20:30:31,906 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:30:42,159 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:30:52,556 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:30:55,518 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:31:25 UTC)" (scheduled at 2025-04-23 17:30:55.503008+00:00)
+2025-04-23 20:30:55,518 - INFO - Starting message check cycle
+2025-04-23 20:30:55,519 - INFO - Finished message check cycle
+2025-04-23 20:30:55,519 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:31:25 UTC)" executed successfully
+2025-04-23 20:31:02,925 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:31:13,319 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:31:23,650 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:31:25,508 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:31:55 UTC)" (scheduled at 2025-04-23 17:31:25.503008+00:00)
+2025-04-23 20:31:25,509 - INFO - Starting message check cycle
+2025-04-23 20:31:25,509 - INFO - Finished message check cycle
+2025-04-23 20:31:25,509 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:31:55 UTC)" executed successfully
+2025-04-23 20:31:33,925 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:31:44,402 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:31:54,911 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:31:55,519 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:32:25 UTC)" (scheduled at 2025-04-23 17:31:55.503008+00:00)
+2025-04-23 20:31:55,519 - INFO - Starting message check cycle
+2025-04-23 20:31:55,520 - INFO - Finished message check cycle
+2025-04-23 20:31:55,520 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:32:25 UTC)" executed successfully
+2025-04-23 20:32:05,394 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:32:15,832 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:32:25,511 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:32:55 UTC)" (scheduled at 2025-04-23 17:32:25.503008+00:00)
+2025-04-23 20:32:25,512 - INFO - Starting message check cycle
+2025-04-23 20:32:25,512 - INFO - Finished message check cycle
+2025-04-23 20:32:25,513 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:32:55 UTC)" executed successfully
+2025-04-23 20:32:26,306 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:32:36,648 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:32:46,824 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:32:55,511 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:33:25 UTC)" (scheduled at 2025-04-23 17:32:55.503008+00:00)
+2025-04-23 20:32:55,512 - INFO - Starting message check cycle
+2025-04-23 20:32:55,512 - INFO - Finished message check cycle
+2025-04-23 20:32:55,513 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:33:25 UTC)" executed successfully
+2025-04-23 20:32:56,992 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:33:07,194 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:33:17,408 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:33:25,516 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:33:55 UTC)" (scheduled at 2025-04-23 17:33:25.503008+00:00)
+2025-04-23 20:33:25,516 - INFO - Starting message check cycle
+2025-04-23 20:33:25,517 - INFO - Finished message check cycle
+2025-04-23 20:33:25,517 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:33:55 UTC)" executed successfully
+2025-04-23 20:33:27,578 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:33:37,831 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:33:48,162 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:33:55,512 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:34:25 UTC)" (scheduled at 2025-04-23 17:33:55.503008+00:00)
+2025-04-23 20:33:55,513 - INFO - Starting message check cycle
+2025-04-23 20:33:55,513 - INFO - Finished message check cycle
+2025-04-23 20:33:55,513 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:34:25 UTC)" executed successfully
+2025-04-23 20:33:58,394 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:34:08,715 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:34:19,073 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:34:25,507 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:34:55 UTC)" (scheduled at 2025-04-23 17:34:25.503008+00:00)
+2025-04-23 20:34:25,507 - INFO - Starting message check cycle
+2025-04-23 20:34:25,507 - INFO - Finished message check cycle
+2025-04-23 20:34:25,507 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:34:55 UTC)" executed successfully
+2025-04-23 20:34:29,435 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:34:39,901 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:34:50,399 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:34:55,503 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:35:25 UTC)" (scheduled at 2025-04-23 17:34:55.503008+00:00)
+2025-04-23 20:34:55,504 - INFO - Starting message check cycle
+2025-04-23 20:34:55,504 - INFO - Finished message check cycle
+2025-04-23 20:34:55,504 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:35:25 UTC)" executed successfully
+2025-04-23 20:35:00,852 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:35:11,213 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:35:21,586 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:35:25,505 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:35:55 UTC)" (scheduled at 2025-04-23 17:35:25.503008+00:00)
+2025-04-23 20:35:25,505 - INFO - Starting message check cycle
+2025-04-23 20:35:25,506 - INFO - Finished message check cycle
+2025-04-23 20:35:25,506 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:35:55 UTC)" executed successfully
+2025-04-23 20:35:32,095 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:35:42,617 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:35:53,013 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:35:55,514 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:36:25 UTC)" (scheduled at 2025-04-23 17:35:55.503008+00:00)
+2025-04-23 20:35:55,514 - INFO - Starting message check cycle
+2025-04-23 20:35:55,515 - INFO - Finished message check cycle
+2025-04-23 20:35:55,515 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:36:25 UTC)" executed successfully
+2025-04-23 20:36:03,408 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:36:13,877 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:36:24,345 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:36:25,515 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:36:55 UTC)" (scheduled at 2025-04-23 17:36:25.503008+00:00)
+2025-04-23 20:36:25,515 - INFO - Starting message check cycle
+2025-04-23 20:36:25,515 - INFO - Finished message check cycle
+2025-04-23 20:36:25,515 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:36:55 UTC)" executed successfully
+2025-04-23 20:36:34,792 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:36:46,106 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:36:55,516 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:37:25 UTC)" (scheduled at 2025-04-23 17:36:55.503008+00:00)
+2025-04-23 20:36:55,517 - INFO - Starting message check cycle
+2025-04-23 20:36:55,518 - INFO - Finished message check cycle
+2025-04-23 20:36:55,518 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:37:25 UTC)" executed successfully
+2025-04-23 20:36:56,627 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:37:07,899 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:37:18,416 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:37:25,512 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:37:55 UTC)" (scheduled at 2025-04-23 17:37:25.503008+00:00)
+2025-04-23 20:37:25,512 - INFO - Starting message check cycle
+2025-04-23 20:37:25,513 - INFO - Finished message check cycle
+2025-04-23 20:37:25,513 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:37:55 UTC)" executed successfully
+2025-04-23 20:37:28,903 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:37:39,344 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:37:49,799 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:37:55,512 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:38:25 UTC)" (scheduled at 2025-04-23 17:37:55.503008+00:00)
+2025-04-23 20:37:55,513 - INFO - Starting message check cycle
+2025-04-23 20:37:55,513 - INFO - Finished message check cycle
+2025-04-23 20:37:55,513 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:38:25 UTC)" executed successfully
+2025-04-23 20:38:00,173 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:38:10,524 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:38:20,917 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:38:25,505 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:38:55 UTC)" (scheduled at 2025-04-23 17:38:25.503008+00:00)
+2025-04-23 20:38:25,505 - INFO - Starting message check cycle
+2025-04-23 20:38:25,506 - INFO - Finished message check cycle
+2025-04-23 20:38:25,506 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:38:55 UTC)" executed successfully
+2025-04-23 20:38:31,315 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:38:42,244 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:38:52,490 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:38:55,515 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:39:25 UTC)" (scheduled at 2025-04-23 17:38:55.503008+00:00)
+2025-04-23 20:38:55,516 - INFO - Starting message check cycle
+2025-04-23 20:38:55,516 - INFO - Finished message check cycle
+2025-04-23 20:38:55,516 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:39:25 UTC)" executed successfully
+2025-04-23 20:39:02,678 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:39:12,933 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:39:23,184 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:39:25,504 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:39:55 UTC)" (scheduled at 2025-04-23 17:39:25.503008+00:00)
+2025-04-23 20:39:25,505 - INFO - Starting message check cycle
+2025-04-23 20:39:25,505 - INFO - Finished message check cycle
+2025-04-23 20:39:25,505 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:39:55 UTC)" executed successfully
+2025-04-23 20:39:34,049 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:39:44,436 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:39:54,755 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:39:55,507 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:40:25 UTC)" (scheduled at 2025-04-23 17:39:55.503008+00:00)
+2025-04-23 20:39:55,507 - INFO - Starting message check cycle
+2025-04-23 20:39:55,508 - INFO - Finished message check cycle
+2025-04-23 20:39:55,508 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:40:25 UTC)" executed successfully
+2025-04-23 20:40:04,982 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:40:15,189 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:40:25,410 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:40:25,514 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:40:55 UTC)" (scheduled at 2025-04-23 17:40:25.503008+00:00)
+2025-04-23 20:40:25,515 - INFO - Starting message check cycle
+2025-04-23 20:40:25,515 - INFO - Finished message check cycle
+2025-04-23 20:40:25,515 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:40:55 UTC)" executed successfully
+2025-04-23 20:40:35,668 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:40:45,953 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:40:55,517 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:41:25 UTC)" (scheduled at 2025-04-23 17:40:55.503008+00:00)
+2025-04-23 20:40:55,518 - INFO - Starting message check cycle
+2025-04-23 20:40:55,518 - INFO - Finished message check cycle
+2025-04-23 20:40:55,519 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:41:25 UTC)" executed successfully
+2025-04-23 20:40:56,273 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:41:06,662 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:41:17,060 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:41:25,507 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:41:55 UTC)" (scheduled at 2025-04-23 17:41:25.503008+00:00)
+2025-04-23 20:41:25,507 - INFO - Starting message check cycle
+2025-04-23 20:41:25,507 - INFO - Finished message check cycle
+2025-04-23 20:41:25,508 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:41:55 UTC)" executed successfully
+2025-04-23 20:41:27,343 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:41:37,715 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:41:48,070 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:41:55,516 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:42:25 UTC)" (scheduled at 2025-04-23 17:41:55.503008+00:00)
+2025-04-23 20:41:55,516 - INFO - Starting message check cycle
+2025-04-23 20:41:55,517 - INFO - Finished message check cycle
+2025-04-23 20:41:55,517 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:42:25 UTC)" executed successfully
+2025-04-23 20:41:58,464 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:42:08,941 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:42:20,084 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:42:25,513 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:42:55 UTC)" (scheduled at 2025-04-23 17:42:25.503008+00:00)
+2025-04-23 20:42:25,514 - INFO - Starting message check cycle
+2025-04-23 20:42:25,514 - INFO - Finished message check cycle
+2025-04-23 20:42:25,514 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:42:55 UTC)" executed successfully
+2025-04-23 20:42:30,536 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:42:41,061 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:42:51,490 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:42:55,516 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:43:25 UTC)" (scheduled at 2025-04-23 17:42:55.503008+00:00)
+2025-04-23 20:42:55,517 - INFO - Starting message check cycle
+2025-04-23 20:42:55,517 - INFO - Finished message check cycle
+2025-04-23 20:42:55,517 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:43:25 UTC)" executed successfully
+2025-04-23 20:43:01,946 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:43:12,442 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:43:22,887 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:43:25,512 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:43:55 UTC)" (scheduled at 2025-04-23 17:43:25.503008+00:00)
+2025-04-23 20:43:25,512 - INFO - Starting message check cycle
+2025-04-23 20:43:25,513 - INFO - Finished message check cycle
+2025-04-23 20:43:25,513 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:43:55 UTC)" executed successfully
+2025-04-23 20:43:33,374 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:43:43,785 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:43:54,157 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:43:55,513 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:44:25 UTC)" (scheduled at 2025-04-23 17:43:55.503008+00:00)
+2025-04-23 20:43:55,513 - INFO - Starting message check cycle
+2025-04-23 20:43:55,514 - INFO - Finished message check cycle
+2025-04-23 20:43:55,514 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:44:25 UTC)" executed successfully
+2025-04-23 20:44:04,636 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:44:15,021 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:44:25,293 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:44:25,508 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:44:55 UTC)" (scheduled at 2025-04-23 17:44:25.503008+00:00)
+2025-04-23 20:44:25,509 - INFO - Starting message check cycle
+2025-04-23 20:44:25,509 - INFO - Finished message check cycle
+2025-04-23 20:44:25,509 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:44:55 UTC)" executed successfully
+2025-04-23 20:44:35,468 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:44:45,593 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:44:55,526 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:45:25 UTC)" (scheduled at 2025-04-23 17:44:55.503008+00:00)
+2025-04-23 20:44:55,526 - INFO - Starting message check cycle
+2025-04-23 20:44:55,527 - INFO - Finished message check cycle
+2025-04-23 20:44:55,527 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:45:25 UTC)" executed successfully
+2025-04-23 20:44:55,716 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:45:05,888 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:45:16,083 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:45:25,521 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:45:55 UTC)" (scheduled at 2025-04-23 17:45:25.503008+00:00)
+2025-04-23 20:45:25,521 - INFO - Starting message check cycle
+2025-04-23 20:45:25,521 - INFO - Finished message check cycle
+2025-04-23 20:45:25,522 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:45:55 UTC)" executed successfully
+2025-04-23 20:45:26,256 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:45:36,430 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:45:46,673 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:45:55,516 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:46:25 UTC)" (scheduled at 2025-04-23 17:45:55.503008+00:00)
+2025-04-23 20:45:55,517 - INFO - Starting message check cycle
+2025-04-23 20:45:55,517 - INFO - Finished message check cycle
+2025-04-23 20:45:55,518 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:46:25 UTC)" executed successfully
+2025-04-23 20:45:57,041 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:46:07,511 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:46:17,808 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:46:23,891 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:46:25,507 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:46:55 UTC)" (scheduled at 2025-04-23 17:46:25.503008+00:00)
+2025-04-23 20:46:25,507 - INFO - Starting message check cycle
+2025-04-23 20:46:25,507 - INFO - Finished message check cycle
+2025-04-23 20:46:25,508 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:46:55 UTC)" executed successfully
+2025-04-23 20:46:33,556 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:46:33,557 - INFO - List channels command received from user 8093896404
+2025-04-23 20:46:33,557 - INFO - No channels configured
+2025-04-23 20:46:34,481 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/sendMessage "HTTP/1.1 200 OK"
+2025-04-23 20:46:43,911 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:46:54,350 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:46:55,507 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:47:25 UTC)" (scheduled at 2025-04-23 17:46:55.503008+00:00)
+2025-04-23 20:46:55,507 - INFO - Starting message check cycle
+2025-04-23 20:46:55,507 - INFO - Finished message check cycle
+2025-04-23 20:46:55,507 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:47:25 UTC)" executed successfully
+2025-04-23 20:47:07,263 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:47:17,679 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:47:25,509 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:47:55 UTC)" (scheduled at 2025-04-23 17:47:25.503008+00:00)
+2025-04-23 20:47:25,509 - INFO - Starting message check cycle
+2025-04-23 20:47:25,509 - INFO - Finished message check cycle
+2025-04-23 20:47:25,509 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:47:55 UTC)" executed successfully
+2025-04-23 20:47:27,924 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:47:38,091 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:47:48,279 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:47:55,508 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:48:25 UTC)" (scheduled at 2025-04-23 17:47:55.503008+00:00)
+2025-04-23 20:47:55,508 - INFO - Starting message check cycle
+2025-04-23 20:47:55,510 - INFO - Finished message check cycle
+2025-04-23 20:47:55,510 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:48:25 UTC)" executed successfully
+2025-04-23 20:47:58,598 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:48:08,824 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:48:18,980 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:48:25,511 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:48:55 UTC)" (scheduled at 2025-04-23 17:48:25.503008+00:00)
+2025-04-23 20:48:25,512 - INFO - Starting message check cycle
+2025-04-23 20:48:25,512 - INFO - Finished message check cycle
+2025-04-23 20:48:25,512 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:48:55 UTC)" executed successfully
+2025-04-23 20:48:29,269 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:48:39,697 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:48:49,933 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:48:55,506 - INFO - Running job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:49:25 UTC)" (scheduled at 2025-04-23 17:48:55.503008+00:00)
+2025-04-23 20:48:55,506 - INFO - Starting message check cycle
+2025-04-23 20:48:55,506 - INFO - Finished message check cycle
+2025-04-23 20:48:55,506 - INFO - Job "check_new_messages (trigger: interval[0:00:30], next run at: 2025-04-23 17:49:25 UTC)" executed successfully
+2025-04-23 20:49:00,214 - INFO - HTTP Request: POST https://api.telegram.org/bot7563699848:AAGTGnOcd_3DAGB2zvSuFYXQRj0jJ3T6zyE/getUpdates "HTTP/1.1 200 OK"
+2025-04-23 20:58:11.595 | INFO     | __main__:verify_channel_access:366 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-23 20:58:11.819 | INFO     | __main__:verify_channel_access:370 - Channel member count: 8
+2025-04-23 20:58:11.822 | INFO     | __main__:start:389 - Bot started successfully!
+2025-04-23 20:58:21.068 | INFO     | __main__:handle_channel_post:283 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 20:58:21.069 | INFO     | __main__:handle_channel_post:302 - Forwarding channel post to all target chats
+2025-04-23 21:00:25.899 | INFO     | __main__:verify_channel_access:393 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-23 21:00:26.398 | INFO     | __main__:verify_channel_access:397 - Channel member count: 8
+2025-04-23 21:00:27.843 | INFO     | __main__:start:436 - Bot started successfully!
+2025-04-23 21:01:10.544 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:01:10.545 | INFO     | __main__:handle_channel_post:306 - Forwarding channel post to all target chats
+2025-04-23 21:01:40.140 | INFO     | __main__:handle_chat_member:355 - Chat member update in -1002542068593 (channel): from ChatMemberStatus.ADMINISTRATOR to ChatMemberStatus.KICKED
+2025-04-23 21:01:55.216 | INFO     | __main__:handle_chat_member:355 - Chat member update in -1002616121376 (supergroup): from ChatMemberStatus.ADMINISTRATOR to ChatMemberStatus.LEFT
+2025-04-23 21:01:55.219 | INFO     | __main__:handle_chat_member:377 - Bot removed from chat -1002616121376
+2025-04-23 21:02:35.382 | INFO     | __main__:handle_chat_member:355 - Chat member update in -1002542068593 (channel): from ChatMemberStatus.KICKED to ChatMemberStatus.ADMINISTRATOR
+2025-04-23 21:02:35.966 | INFO     | __main__:handle_chat_member:370 - Bot added to channel: ТЕст ченнел (-1002542068593)
+2025-04-23 21:02:38.953 | INFO     | __main__:handle_chat_member:355 - Chat member update in -1002616121376 (supergroup): from ChatMemberStatus.KICKED to ChatMemberStatus.ADMINISTRATOR
+2025-04-23 21:02:40.467 | INFO     | __main__:handle_chat_member:370 - Bot added to supergroup: ChatTest (-1002616121376)
+2025-04-23 21:02:51.498 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:02:51.498 | INFO     | __main__:handle_channel_post:306 - Forwarding channel post to all target chats
+2025-04-23 21:03:28.133 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:03:28.133 | INFO     | __main__:handle_channel_post:306 - Forwarding channel post to all target chats
+2025-04-23 21:04:36.107 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:04:36.108 | INFO     | __main__:handle_channel_post:306 - Forwarding channel post to all target chats
+2025-04-23 21:05:10.778 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:05:10.778 | INFO     | __main__:handle_channel_post:306 - Forwarding channel post to all target chats
+2025-04-23 21:05:59.351 | INFO     | __main__:verify_channel_access:402 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-23 21:05:59.657 | INFO     | __main__:verify_channel_access:406 - Channel member count: 8
+2025-04-23 21:06:01.036 | INFO     | __main__:start:445 - Bot started successfully!
+2025-04-23 21:06:05.756 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:06:05.757 | INFO     | __main__:handle_channel_post:299 - Bot is not running, ignoring post
+2025-04-23 21:06:26.422 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:06:26.423 | INFO     | __main__:handle_channel_post:306 - Forwarding channel post to all target chats
+2025-04-23 21:06:27.261 | INFO     | __main__:forward_to_all:328 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-23 21:06:27.564 | INFO     | __main__:forward_to_all:319 - Skipping forward to channel -1002542068593
+2025-04-23 21:06:34.506 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:06:34.506 | INFO     | __main__:handle_channel_post:306 - Forwarding channel post to all target chats
+2025-04-23 21:06:35.170 | INFO     | __main__:forward_to_all:328 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-23 21:06:35.510 | INFO     | __main__:forward_to_all:319 - Skipping forward to channel -1002542068593
+2025-04-23 21:06:52.247 | INFO     | __main__:handle_channel_post:287 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-23 21:06:52.248 | INFO     | __main__:handle_channel_post:306 - Forwarding channel post to all target chats
+2025-04-23 21:06:52.896 | INFO     | __main__:forward_to_all:328 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-23 21:06:53.031 | INFO     | __main__:forward_to_all:319 - Skipping forward to channel -1002542068593
+2025-04-23 21:26:48.911 | INFO     | __main__:verify_channel_access:402 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-23 21:26:49.182 | INFO     | __main__:verify_channel_access:406 - Channel member count: 8
+2025-04-23 21:26:50.512 | INFO     | __main__:start:445 - Bot started successfully!
+2025-04-23 22:27:14.104 | ERROR    | __main__:fallback_repost:351 - Error in fallback repost: 'Bot' object has no attribute 'get_chat_history'
+2025-04-23 23:28:19.088 | ERROR    | __main__:fallback_repost:351 - Error in fallback repost: 'Bot' object has no attribute 'get_chat_history'
+2025-04-24 00:29:19.120 | ERROR    | __main__:fallback_repost:351 - Error in fallback repost: 'Bot' object has no attribute 'get_chat_history'
+2025-04-24 01:30:19.149 | ERROR    | __main__:fallback_repost:351 - Error in fallback repost: 'Bot' object has no attribute 'get_chat_history'
+2025-04-24 02:31:19.147 | ERROR    | __main__:fallback_repost:351 - Error in fallback repost: 'Bot' object has no attribute 'get_chat_history'
+2025-04-24 02:54:22.717 | ERROR    | __main__:verify_channel_access:437 - Failed to access channel mychannel: Telegram server says - Bad Request: chat not found
+2025-04-24 02:54:22.718 | ERROR    | __main__:start:462 - Bot must be an admin in the source channel!
+2025-04-24 02:55:05.059 | INFO     | __main__:verify_channel_access:429 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 02:55:05.156 | INFO     | __main__:verify_channel_access:433 - Channel member count: 8
+2025-04-24 02:55:06.269 | INFO     | __main__:start:472 - Bot started successfully!
+2025-04-24 02:58:27.459 | INFO     | __main__:verify_channel_access:443 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 02:58:27.557 | INFO     | __main__:verify_channel_access:447 - Channel member count: 8
+2025-04-24 02:58:28.671 | INFO     | __main__:start:486 - Bot started successfully!
+2025-04-24 02:59:55.329 | INFO     | __main__:verify_channel_access:443 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 02:59:55.424 | INFO     | __main__:verify_channel_access:447 - Channel member count: 8
+2025-04-24 02:59:56.535 | INFO     | __main__:start:486 - Bot started successfully!
+2025-04-24 02:59:59.629 | INFO     | __main__:start:497 - Starting polling with offset 0
+2025-04-24 03:00:10.563 | INFO     | __main__:<module>:544 - Bot stopped by user
+2025-04-24 03:01:18.545 | INFO     | __main__:verify_channel_access:443 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 03:01:18.646 | INFO     | __main__:verify_channel_access:447 - Channel member count: 8
+2025-04-24 03:01:19.765 | INFO     | __main__:start:486 - Bot started successfully!
+2025-04-24 03:01:20.843 | INFO     | __main__:start:497 - Starting polling with offset 377362970
+2025-04-24 03:06:28.878 | ERROR    | __main__:fallback_repost:388 - Error in fallback repost: 'Chat' object has no attribute 'last_message_id'
+2025-04-24 03:10:15.344 | INFO     | __main__:<module>:544 - Bot stopped by user
+2025-04-24 03:22:46.674 | INFO     | __main__:verify_channel_access:448 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 03:22:46.768 | INFO     | __main__:verify_channel_access:452 - Channel member count: 8
+2025-04-24 03:22:47.877 | INFO     | __main__:start:491 - Bot started successfully!
+2025-04-24 03:22:50.968 | INFO     | __main__:start:502 - Starting polling with offset 0
+2025-04-24 03:24:47.268 | INFO     | __main__:handle_channel_post:321 - Received channel post from -1002542068593 (ТЕст ченнел)
+2025-04-24 03:24:47.268 | INFO     | __main__:handle_channel_post:340 - Forwarding channel post to all target chats
+2025-04-24 03:24:47.768 | INFO     | __main__:forward_to_all:362 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 03:24:47.884 | INFO     | __main__:forward_to_all:353 - Skipping forward to channel -1002542068593
+2025-04-24 03:27:57.478 | ERROR    | __main__:fallback_repost:393 - Error in fallback repost: 'Bot' object has no attribute 'get_chat_history'
+2025-04-24 03:28:08.740 | INFO     | __main__:<module>:549 - Bot stopped by user
+2025-04-24 03:29:42.035 | INFO     | __main__:verify_channel_access:450 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 03:29:42.133 | INFO     | __main__:verify_channel_access:454 - Channel member count: 8
+2025-04-24 03:29:43.240 | INFO     | __main__:start:493 - Bot started successfully!
+2025-04-24 03:29:46.330 | INFO     | __main__:start:504 - Starting polling with offset 0
+2025-04-24 03:36:49.995 | ERROR    | __main__:fallback_repost:392 - Failed to forward message 1: Telegram server says - Bad Request: the message can't be forwarded
+2025-04-24 03:41:43.672 | INFO     | __main__:<module>:551 - Bot stopped by user
+2025-04-24 03:41:50.398 | INFO     | __main__:verify_channel_access:450 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 03:41:50.492 | INFO     | __main__:verify_channel_access:454 - Channel member count: 8
+2025-04-24 03:41:51.605 | INFO     | __main__:start:493 - Bot started successfully!
+2025-04-24 03:41:54.698 | INFO     | __main__:start:504 - Starting polling with offset 0
+2025-04-24 03:47:01.050 | ERROR    | __main__:fallback_repost:392 - Failed to forward message 1: Telegram server says - Bad Request: the message can't be copied
+2025-04-24 03:52:01.400 | ERROR    | __main__:fallback_repost:392 - Failed to forward message 1: Telegram server says - Bad Request: the message can't be copied
+2025-04-24 03:57:01.722 | ERROR    | __main__:fallback_repost:392 - Failed to forward message 1: Telegram server says - Bad Request: the message can't be copied
+2025-04-24 04:02:02.082 | ERROR    | __main__:fallback_repost:392 - Failed to forward message 1: Telegram server says - Bad Request: the message can't be copied
+2025-04-24 04:07:02.436 | ERROR    | __main__:fallback_repost:392 - Failed to forward message 1: Telegram server says - Bad Request: the message can't be copied
+2025-04-24 04:10:07.449 | INFO     | __main__:<module>:551 - Bot stopped by user
+2025-04-24 04:10:11.077 | INFO     | __main__:verify_channel_access:450 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 04:10:11.167 | INFO     | __main__:verify_channel_access:454 - Channel member count: 8
+2025-04-24 04:10:12.292 | INFO     | __main__:start:493 - Bot started successfully!
+2025-04-24 04:10:15.384 | INFO     | __main__:start:504 - Starting polling with offset 0
+2025-04-24 04:24:17.590 | INFO     | __main__:handle_channel_post:333 - No pinned message to repost
+2025-04-24 04:24:17.590 | INFO     | __main__:fallback_repost:390 - Triggered message repost check
+2025-04-24 04:29:17.951 | INFO     | __main__:handle_channel_post:333 - No pinned message to repost
+2025-04-24 04:29:17.951 | INFO     | __main__:fallback_repost:390 - Triggered message repost check
+2025-04-24 04:34:18.338 | INFO     | __main__:handle_channel_post:333 - No pinned message to repost
+2025-04-24 04:34:18.338 | INFO     | __main__:fallback_repost:390 - Triggered message repost check
+2025-04-24 04:39:18.714 | INFO     | __main__:handle_channel_post:333 - No pinned message to repost
+2025-04-24 04:39:18.715 | INFO     | __main__:fallback_repost:390 - Triggered message repost check
+2025-04-24 04:40:11.982 | INFO     | __main__:handle_channel_post:351 - Forwarding channel post to all target chats
+2025-04-24 04:40:12.522 | INFO     | __main__:forward_to_all:373 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 04:40:12.618 | INFO     | __main__:forward_to_all:364 - Skipping forward to channel -1002542068593
+2025-04-24 04:42:19.714 | INFO     | __main__:<module>:551 - Bot stopped by user
+2025-04-24 04:42:26.320 | INFO     | __main__:verify_channel_access:450 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 04:42:26.414 | INFO     | __main__:verify_channel_access:454 - Channel member count: 8
+2025-04-24 04:42:26.415 | ERROR    | __main__:verify_channel_access:466 - Failed to access message history. Ensure bot is admin with message access rights: 'Bot' object has no attribute 'get_history'
+2025-04-24 04:42:26.415 | ERROR    | __main__:start:496 - Bot must be an admin in the source channel!
+2025-04-24 04:43:57.818 | INFO     | __main__:verify_channel_access:450 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 04:43:57.918 | INFO     | __main__:verify_channel_access:454 - Channel member count: 8
+2025-04-24 04:43:57.918 | ERROR    | __main__:verify_channel_access:466 - Failed to access message history. Ensure bot is admin with message access rights: 'Bot' object has no attribute 'get_chat_history'
+2025-04-24 04:43:57.918 | ERROR    | __main__:start:496 - Bot must be an admin in the source channel!
+2025-04-24 04:45:44.556 | INFO     | __main__:verify_channel_access:450 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 04:45:44.649 | INFO     | __main__:verify_channel_access:454 - Channel member count: 8
+2025-04-24 04:45:44.650 | ERROR    | __main__:verify_channel_access:465 - Failed to access message history. Ensure bot is admin with message access rights: 'Bot' object has no attribute 'get_chat_history'
+2025-04-24 04:45:44.650 | ERROR    | __main__:start:495 - Bot must be an admin in the source channel!
+2025-04-24 04:46:48.957 | INFO     | __main__:verify_channel_access:517 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 04:46:49.050 | INFO     | __main__:verify_channel_access:521 - Channel member count: 8
+2025-04-24 04:46:49.148 | INFO     | __main__:verify_channel_access:525 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 04:46:50.442 | INFO     | __main__:start:584 - Bot started successfully!
+2025-04-24 04:46:53.535 | INFO     | __main__:start:595 - Starting polling with offset 0
+2025-04-24 04:52:08.511 | WARNING  | __main__:handle_channel_post:369 - Не удалось найти последнее сообщение в канале
+2025-04-24 04:52:08.511 | INFO     | __main__:fallback_repost:457 - Triggered message repost check
+2025-04-24 04:57:19.489 | WARNING  | __main__:handle_channel_post:369 - Не удалось найти последнее сообщение в канале
+2025-04-24 04:57:19.489 | INFO     | __main__:fallback_repost:457 - Triggered message repost check
+2025-04-24 04:57:31.447 | INFO     | __main__:<module>:642 - Bot stopped by user
+2025-04-24 04:57:35.351 | INFO     | __main__:verify_channel_access:524 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 04:57:35.454 | INFO     | __main__:verify_channel_access:528 - Channel member count: 8
+2025-04-24 04:57:35.550 | INFO     | __main__:verify_channel_access:532 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 04:57:36.843 | INFO     | __main__:start:584 - Bot started successfully!
+2025-04-24 04:57:37.417 | INFO     | __main__:start:595 - Starting polling with offset 377362998
+2025-04-24 05:02:41.388 | WARNING  | __main__:handle_channel_post:359 - Нет сохраненного ID последнего сообщения для повторной отправки
+2025-04-24 05:02:41.389 | INFO     | __main__:fallback_repost:461 - Triggered periodic repost
+2025-04-24 05:03:35.122 | INFO     | __main__:handle_channel_post:379 - Forwarding channel post 47 to all target chats
+2025-04-24 05:03:35.129 | INFO     | __main__:save_last_message:111 - Saved last message ID 47 for channel -1002542068593
+2025-04-24 05:03:35.662 | INFO     | __main__:forward_to_all:445 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 05:03:35.783 | INFO     | __main__:forward_to_all:436 - Skipping forward to channel -1002542068593
+2025-04-24 05:07:41.408 | INFO     | __main__:handle_channel_post:362 - Повторная отправка сообщения ID: 47
+2025-04-24 05:07:41.977 | INFO     | __main__:repost_saved_message:418 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 05:07:42.097 | INFO     | __main__:repost_saved_message:406 - Пропускаем пересылку в channel -1002542068593
+2025-04-24 05:07:42.097 | INFO     | __main__:fallback_repost:461 - Triggered periodic repost
+2025-04-24 05:08:27.168 | INFO     | __main__:fallback_repost:466 - Repost task cancelled
+2025-04-24 05:08:27.170 | INFO     | __main__:<module>:642 - Bot stopped by user
+2025-04-24 05:08:31.610 | INFO     | __main__:verify_channel_access:667 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 05:08:31.705 | INFO     | __main__:verify_channel_access:671 - Channel member count: 8
+2025-04-24 05:08:31.800 | INFO     | __main__:verify_channel_access:675 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 05:08:33.078 | INFO     | __main__:start:727 - Bot started successfully!
+2025-04-24 05:08:36.168 | INFO     | __main__:start:738 - Starting polling with offset 0
+2025-04-24 05:13:42.291 | INFO     | __main__:handle_channel_post:505 - Повторная отправка сообщения ID: 47
+2025-04-24 05:13:42.811 | INFO     | __main__:repost_saved_message:561 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 05:13:42.926 | INFO     | __main__:repost_saved_message:549 - Пропускаем пересылку в channel -1002542068593
+2025-04-24 05:13:42.927 | INFO     | __main__:fallback_repost:604 - Triggered periodic repost
+2025-04-24 05:18:42.927 | INFO     | __main__:handle_channel_post:505 - Повторная отправка сообщения ID: 47
+2025-04-24 05:18:43.393 | ERROR    | __main__:repost_saved_message:564 - Ошибка при пересылке в -1002616121376: Telegram server says - Bad Request: MESSAGE_ID_INVALID
+2025-04-24 05:18:43.519 | INFO     | __main__:repost_saved_message:549 - Пропускаем пересылку в channel -1002542068593
+2025-04-24 05:18:43.520 | INFO     | __main__:fallback_repost:604 - Triggered periodic repost
+2025-04-24 16:51:35.336 | ERROR    | __main__:<module>:787 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-24 16:51:52.059 | ERROR    | __main__:<module>:787 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-24 16:52:45.225 | ERROR    | __main__:<module>:787 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-24 16:53:05.102 | ERROR    | __main__:<module>:787 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-24 16:54:28.026 | ERROR    | __main__:<module>:792 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-24 16:54:48.071 | ERROR    | __main__:<module>:787 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-24 16:55:04.593 | ERROR    | __main__:<module>:787 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-24 16:55:08.160 | ERROR    | __main__:<module>:787 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-24 16:56:12.195 | ERROR    | __main__:<module>:793 - Bot stopped due to error: No module named 'psutil'
+2025-04-24 16:56:33.323 | INFO     | __main__:main:759 - Cleaned up stale lock file
+2025-04-24 16:56:34.112 | INFO     | __main__:verify_channel_access:667 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 16:56:34.210 | INFO     | __main__:verify_channel_access:671 - Channel member count: 8
+2025-04-24 16:56:34.310 | INFO     | __main__:verify_channel_access:675 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 16:56:35.626 | INFO     | __main__:start:727 - Bot started successfully!
+2025-04-24 16:56:38.722 | INFO     | __main__:start:738 - Starting polling with offset 0
+2025-04-24 16:56:51.245 | INFO     | __main__:handle_channel_post:495 - Bot is not running, ignoring post
+2025-04-24 16:57:16.813 | INFO     | __main__:handle_channel_post:522 - Forwarding channel post 49 to all target chats
+2025-04-24 16:57:16.822 | INFO     | __main__:save_last_message:111 - Saved last message ID 49 for channel -1002542068593
+2025-04-24 16:57:17.137 | INFO     | __main__:forward_to_all:588 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 16:57:17.233 | INFO     | __main__:forward_to_all:579 - Skipping forward to channel -1002542068593
+2025-04-24 16:57:56.095 | INFO     | __main__:fallback_repost:609 - Repost task cancelled
+2025-04-24 16:57:56.097 | INFO     | __main__:<module>:791 - Bot stopped by user
+2025-04-24 16:58:01.737 | INFO     | __main__:verify_channel_access:667 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 16:58:01.837 | INFO     | __main__:verify_channel_access:671 - Channel member count: 8
+2025-04-24 16:58:01.950 | INFO     | __main__:verify_channel_access:675 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 16:58:03.329 | INFO     | __main__:start:727 - Bot started successfully!
+2025-04-24 16:58:06.420 | INFO     | __main__:start:738 - Starting polling with offset 0
+2025-04-24 16:58:16.495 | INFO     | __main__:handle_channel_post:495 - Bot is not running, ignoring post
+2025-04-24 16:58:27.736 | INFO     | __main__:handle_channel_post:522 - Forwarding channel post 51 to all target chats
+2025-04-24 16:58:27.746 | INFO     | __main__:save_last_message:111 - Saved last message ID 51 for channel -1002542068593
+2025-04-24 16:58:28.036 | INFO     | __main__:forward_to_all:588 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 16:58:28.128 | INFO     | __main__:forward_to_all:579 - Skipping forward to channel -1002542068593
+2025-04-24 16:58:35.583 | INFO     | __main__:handle_channel_post:522 - Forwarding channel post 52 to all target chats
+2025-04-24 16:58:35.593 | INFO     | __main__:save_last_message:111 - Saved last message ID 52 for channel -1002542068593
+2025-04-24 16:58:35.840 | INFO     | __main__:forward_to_all:588 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 16:58:35.944 | INFO     | __main__:forward_to_all:579 - Skipping forward to channel -1002542068593
+2025-04-24 16:58:43.972 | INFO     | __main__:handle_channel_post:522 - Forwarding channel post 53 to all target chats
+2025-04-24 16:58:43.979 | INFO     | __main__:save_last_message:111 - Saved last message ID 53 for channel -1002542068593
+2025-04-24 16:58:44.222 | INFO     | __main__:forward_to_all:588 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 16:58:44.318 | INFO     | __main__:forward_to_all:579 - Skipping forward to channel -1002542068593
+2025-04-24 16:58:56.978 | INFO     | __main__:fallback_repost:609 - Repost task cancelled
+2025-04-24 16:58:56.980 | INFO     | __main__:<module>:785 - Bot stopped by user
+2025-04-24 16:59:00.666 | INFO     | __main__:verify_channel_access:667 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 16:59:00.764 | INFO     | __main__:verify_channel_access:671 - Channel member count: 8
+2025-04-24 16:59:00.870 | INFO     | __main__:verify_channel_access:675 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 16:59:02.160 | INFO     | __main__:start:727 - Bot started successfully!
+2025-04-24 16:59:05.262 | INFO     | __main__:start:738 - Starting polling with offset 0
+2025-04-24 16:59:11.884 | INFO     | __main__:handle_channel_post:522 - Forwarding channel post 54 to all target chats
+2025-04-24 16:59:12.128 | INFO     | __main__:save_last_message:111 - Saved last message ID 54 for channel -1002542068593
+2025-04-24 16:59:12.652 | INFO     | __main__:forward_to_all:588 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 16:59:12.903 | INFO     | __main__:forward_to_all:579 - Skipping forward to channel -1002542068593
+2025-04-24 17:02:18.372 | INFO     | __main__:fallback_repost:609 - Repost task cancelled
+2025-04-24 17:02:18.372 | INFO     | __main__:<module>:791 - Bot stopped by user
+2025-04-24 17:02:21.555 | ERROR    | __main__:<module>:906 - Bot stopped due to error: 'ForwarderBot' object has no attribute 'find_last_message_command'
+2025-04-24 17:03:38.878 | INFO     | __main__:verify_channel_access:786 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 17:03:38.982 | INFO     | __main__:verify_channel_access:790 - Channel member count: 8
+2025-04-24 17:03:39.087 | INFO     | __main__:verify_channel_access:794 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 17:03:40.392 | INFO     | __main__:start:846 - Bot started successfully!
+2025-04-24 17:03:43.490 | INFO     | __main__:start:857 - Starting polling with offset 0
+2025-04-24 17:03:43.781 | INFO     | __main__:handle_channel_post:584 - Bot is not running, ignoring post
+2025-04-24 17:03:51.799 | INFO     | __main__:handle_channel_post:611 - Forwarding channel post 56 to all target chats
+2025-04-24 17:03:51.807 | INFO     | __main__:save_last_message:111 - Saved last message ID 56 for channel -1002542068593
+2025-04-24 17:03:52.140 | INFO     | __main__:forward_to_all:704 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 17:03:52.236 | INFO     | __main__:forward_to_all:695 - Skipping forward to channel -1002542068593
+2025-04-24 17:05:31.644 | INFO     | __main__:fallback_repost:728 - Repost task cancelled
+2025-04-24 17:07:18.107 | INFO     | __main__:fallback_repost:728 - Repost task cancelled
+2025-04-24 17:07:18.109 | INFO     | __main__:<module>:905 - Bot stopped by user
+2025-04-24 17:07:21.905 | INFO     | __main__:verify_channel_access:786 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 17:07:22.020 | INFO     | __main__:verify_channel_access:790 - Channel member count: 8
+2025-04-24 17:07:22.121 | INFO     | __main__:verify_channel_access:794 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 17:07:23.417 | INFO     | __main__:start:846 - Bot started successfully!
+2025-04-24 17:07:26.403 | INFO     | __main__:start:857 - Starting polling with offset 377363039
+2025-04-24 17:08:05.776 | INFO     | __main__:handle_channel_post:611 - Forwarding channel post 57 to all target chats
+2025-04-24 17:08:05.794 | INFO     | __main__:save_last_message:111 - Saved last message ID 57 for channel -1002542068593
+2025-04-24 17:08:06.342 | INFO     | __main__:forward_to_all:704 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 17:08:06.437 | INFO     | __main__:forward_to_all:695 - Skipping forward to channel -1002542068593
+2025-04-24 17:12:30.246 | INFO     | __main__:handle_channel_post:594 - Повторная отправка сообщения ID: 57
+2025-04-24 17:12:30.711 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 17:12:30.835 | INFO     | __main__:repost_saved_message:639 - Пропускаем пересылку в channel -1002542068593
+2025-04-24 17:12:30.836 | INFO     | __main__:fallback_repost:723 - Triggered periodic repost
+2025-04-24 17:15:46.680 | INFO     | __main__:fallback_repost:728 - Repost task cancelled
+2025-04-24 17:15:46.682 | INFO     | __main__:<module>:905 - Bot stopped by user
+2025-04-24 17:15:50.430 | INFO     | __main__:verify_channel_access:971 - Checking access to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 17:15:50.535 | INFO     | __main__:verify_channel_access:975 - Channel -1002542068593 member count: 8
+2025-04-24 17:15:50.630 | INFO     | __main__:verify_channel_access:979 - Bot status in channel -1002542068593: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 17:15:51.939 | INFO     | __main__:start:1039 - Bot started successfully!
+2025-04-24 17:15:53.481 | INFO     | __main__:start:1050 - Starting polling with offset 377363052
+2025-04-24 17:18:10.807 | INFO     | __main__:handle_chat_member:922 - Chat member update in 718903327 (private): from ChatMemberStatus.MEMBER to ChatMemberStatus.KICKED
+2025-04-24 17:19:47.461 | INFO     | __main__:handle_channel_post:712 - Forwarding channel post 58 to all target chats
+2025-04-24 17:19:47.468 | INFO     | __main__:save_last_message:125 - Saved last message ID 58 for channel -1002542068593
+2025-04-24 17:19:48.036 | INFO     | __main__:forward_to_all:805 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 17:19:48.182 | INFO     | __main__:forward_to_all:796 - Skipping forward to channel -1002542068593
+2025-04-24 17:22:23.992 | INFO     | __main__:handle_channel_post:687 - Повторная отправка сообщения ID: 58 из канала -1002542068593
+2025-04-24 17:22:24.920 | INFO     | __main__:repost_saved_message:752 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 17:22:25.153 | INFO     | __main__:repost_saved_message:740 - Пропускаем пересылку в channel -1002542068593
+2025-04-24 17:22:25.153 | INFO     | __main__:fallback_repost:824 - Triggered periodic repost
+2025-04-24 17:22:33.824 | INFO     | __main__:handle_chat_member:922 - Chat member update in -4631733408 (group): from ChatMemberStatus.LEFT to ChatMemberStatus.MEMBER
+2025-04-24 17:22:34.723 | INFO     | __main__:handle_chat_member:937 - Bot added to group: чат2 (-4631733408)
+2025-04-24 17:22:52.256 | INFO     | __main__:handle_channel_post:712 - Forwarding channel post 59 to all target chats
+2025-04-24 17:22:52.270 | INFO     | __main__:save_last_message:125 - Saved last message ID 59 for channel -1002542068593
+2025-04-24 17:22:52.779 | INFO     | __main__:forward_to_all:805 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 17:22:52.879 | INFO     | __main__:forward_to_all:796 - Skipping forward to channel -1002542068593
+2025-04-24 17:22:53.196 | INFO     | __main__:forward_to_all:805 - Forwarded to group чат2 (-4631733408)
+2025-04-24 17:27:25.163 | INFO     | __main__:handle_channel_post:687 - Повторная отправка сообщения ID: 59 из канала -1002542068593
+2025-04-24 17:27:25.645 | INFO     | __main__:repost_saved_message:752 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 17:27:25.777 | INFO     | __main__:repost_saved_message:740 - Пропускаем пересылку в channel -1002542068593
+2025-04-24 17:27:26.028 | INFO     | __main__:repost_saved_message:752 - Периодически переслано в group чат2 (-4631733408)
+2025-04-24 17:27:26.028 | INFO     | __main__:fallback_repost:824 - Triggered periodic repost
+2025-04-24 17:31:27.696 | INFO     | __main__:fallback_repost:829 - Repost task cancelled
+2025-04-24 17:32:14.577 | INFO     | __main__:handle_channel_post:712 - Forwarding channel post 60 to all target chats
+2025-04-24 17:32:14.586 | INFO     | __main__:save_last_message:125 - Saved last message ID 60 for channel -1002542068593
+2025-04-24 17:32:15.049 | INFO     | __main__:forward_to_all:805 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-24 17:32:15.165 | INFO     | __main__:forward_to_all:796 - Skipping forward to channel -1002542068593
+2025-04-24 17:32:15.414 | INFO     | __main__:forward_to_all:805 - Forwarded to group чат2 (-4631733408)
+2025-04-24 17:34:04.826 | INFO     | __main__:fallback_repost:829 - Repost task cancelled
+2025-04-24 17:34:04.826 | INFO     | __main__:<module>:1098 - Bot stopped by user
+2025-04-24 17:34:08.638 | INFO     | __main__:verify_channel_access:1061 - Checking access to channel: ТЕст ченнел (-1002542068593)
+2025-04-24 17:34:08.742 | INFO     | __main__:verify_channel_access:1065 - Channel -1002542068593 member count: 8
+2025-04-24 17:34:08.856 | INFO     | __main__:verify_channel_access:1069 - Bot status in channel -1002542068593: ChatMemberStatus.ADMINISTRATOR
+2025-04-24 17:34:10.172 | INFO     | __main__:start:1129 - Бот успешно запущен!
+2025-04-24 17:34:13.267 | INFO     | __main__:start:1140 - Запуск получения обновлений с отступом 0
+2025-04-24 17:35:09.208 | INFO     | __main__:handle_chat_member:1012 - Chat member update in -1002585695647 (channel): from ChatMemberStatus.LEFT to ChatMemberStatus.ADMINISTRATOR
+2025-04-24 17:35:19.134 | INFO     | __main__:handle_channel_post:723 - Сообщение не из канала-источника. Получено от -1002585695647/None
+2025-04-24 17:35:34.176 | INFO     | __main__:handle_channel_post:726 - Пересылка сообщения 61 во все целевые чаты
+2025-04-24 17:35:34.185 | INFO     | __main__:save_last_message:125 - Saved last message ID 61 for channel -1002542068593
+2025-04-24 17:35:34.469 | INFO     | __main__:forward_to_all:819 - Переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 17:35:34.606 | INFO     | __main__:forward_to_all:810 - Пропускаю пересылку в channel -1002542068593
+2025-04-24 17:35:34.844 | INFO     | __main__:forward_to_all:819 - Переслано в group чат2 (-4631733408)
+2025-04-24 17:35:51.701 | INFO     | __main__:handle_channel_post:726 - Пересылка сообщения 62 во все целевые чаты
+2025-04-24 17:35:51.710 | INFO     | __main__:save_last_message:125 - Saved last message ID 62 for channel -1002542068593
+2025-04-24 17:35:52.170 | INFO     | __main__:forward_to_all:819 - Переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 17:35:52.266 | INFO     | __main__:forward_to_all:810 - Пропускаю пересылку в channel -1002542068593
+2025-04-24 17:35:52.501 | INFO     | __main__:forward_to_all:819 - Переслано в group чат2 (-4631733408)
+2025-04-24 17:36:13.184 | INFO     | __main__:handle_channel_post:726 - Пересылка сообщения 63 во все целевые чаты
+2025-04-24 17:36:13.192 | INFO     | __main__:save_last_message:125 - Saved last message ID 63 for channel -1002542068593
+2025-04-24 17:36:13.675 | INFO     | __main__:forward_to_all:819 - Переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 17:36:13.776 | INFO     | __main__:forward_to_all:810 - Пропускаю пересылку в channel -1002542068593
+2025-04-24 17:36:14.035 | INFO     | __main__:forward_to_all:819 - Переслано в group чат2 (-4631733408)
+2025-04-24 17:40:14.786 | INFO     | __main__:handle_channel_post:701 - Повторная отправка сообщения ID: 63 из канала -1002542068593
+2025-04-24 17:40:15.328 | INFO     | __main__:repost_saved_message:766 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-24 17:40:15.447 | INFO     | __main__:repost_saved_message:754 - Пропускаем пересылку в channel -1002542068593
+2025-04-24 17:40:15.717 | INFO     | __main__:repost_saved_message:766 - Периодически переслано в group чат2 (-4631733408)
+2025-04-24 17:40:15.717 | INFO     | __main__:fallback_repost:838 - Запущена периодическая рассылка
+2025-04-24 17:40:27.146 | INFO     | __main__:fallback_repost:843 - Задача рассылки отменена
+2025-04-24 17:44:13.141 | INFO     | __main__:fallback_repost:843 - Задача рассылки отменена
+2025-04-24 17:44:13.141 | INFO     | __main__:<module>:1188 - Bot stopped by user
