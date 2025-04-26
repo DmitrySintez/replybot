@@ -869,16 +869,28 @@ async def main():
             # Check if process is actually running
             with open(lock_file, 'r') as f:
                 pid = int(f.read().strip())
-            os.kill(pid, 0)  # Test if process is running
-            logger.error(f"Another instance is already running (PID: {pid})")
-            return
-        except (ProcessLookupError, ValueError):
-            # Process not running, clean up stale lock file
+            
+            # Use psutil instead of os.kill for cross-platform compatibility
+            import psutil
+            if psutil.pid_exists(pid):
+                logger.error(f"Another instance is already running (PID: {pid})")
+                return
+            else:
+                # Process not running, clean up stale lock file
+                os.remove(lock_file)
+                logger.info("Cleaned up stale lock file")
+                
+        except (ValueError, FileNotFoundError):
+            # Process not running or invalid PID, clean up stale lock file
             os.remove(lock_file)
             logger.info("Cleaned up stale lock file")
         except PermissionError:
             logger.error("Cannot access lock file")
             return
+        except ImportError:
+            # If psutil is not available, just assume no other process is running
+            os.remove(lock_file)
+            logger.info("Psutil not available, cleaned up lock file and continuing")
 
     # Create lock file with current PID
     try:
