@@ -164,6 +164,28 @@ class Repository:
                 return row[0] if row else None
 
     @staticmethod
+    async def get_all_last_messages() -> Dict[str, Dict[str, Any]]:
+        """Get last message IDs for all channels"""
+        async with DatabaseConnectionPool.get_connection() as db:
+            async with db.execute(
+                "SELECT channel_id, message_id, timestamp FROM last_messages"
+            ) as cursor:
+                results = await cursor.fetchall()
+                return {row[0]: {"message_id": row[1], "timestamp": row[2]} for row in results}
+
+    @staticmethod
+    async def get_latest_message() -> tuple:
+        """Get the most recent message across all channels"""
+        async with DatabaseConnectionPool.get_connection() as db:
+            async with db.execute(
+                "SELECT channel_id, message_id, timestamp FROM last_messages ORDER BY timestamp DESC LIMIT 1"
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return (row[0], row[1])  # (channel_id, message_id)
+                return (None, None)
+
+    @staticmethod
     async def get_stats() -> Dict[str, Any]:
         """Get forwarding statistics"""
         async with DatabaseConnectionPool.get_connection() as db:

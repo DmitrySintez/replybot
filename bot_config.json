@@ -1,5 +1,8 @@
 {
-    "source_channels": [],
+    "source_channels": [
+        "-1002542068593",
+        "-1002397915003"
+    ],
     "target_chats": [],
     "last_message_ids": {}
 }

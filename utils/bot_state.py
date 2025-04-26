@@ -18,7 +18,7 @@ class BotState(ABC):
         pass
     
     @abstractmethod
-    async def handle_message(self, message_id: int) -> None:
+    async def handle_message(self, channel_id: str, message_id: int) -> None:
         """Handle message forwarding"""
         pass
 
@@ -37,7 +37,7 @@ class IdleState(BotState):
         # Already stopped
         pass
     
-    async def handle_message(self, message_id: int) -> None:
+    async def handle_message(self, channel_id: str, message_id: int) -> None:
         # Don't forward messages in idle state
         logger.info("Bot is idle, not forwarding messages")
 
@@ -64,18 +64,24 @@ class RunningState(BotState):
         self.context.state = IdleState(self.context)
         await self.context._notify_owner("Bot stopped forwarding")
     
-    async def handle_message(self, message_id: int) -> None:
-        await self.context._forward_message(message_id)
+    async def handle_message(self, channel_id: str, message_id: int) -> None:
+        await self.context._forward_message(channel_id, message_id)
     
     async def _fallback_repost(self):
-        """Periodic repost task"""
+        """Periodic repost task for most recent message across all channels"""
         while True:
             try:
                 await asyncio.sleep(self.interval)
-                last_message_id = await Repository.get_last_message(self.context.source_channel)
-                if last_message_id:
-                    await self.handle_message(last_message_id)
-                    logger.info("Triggered periodic repost")
+                
+                # Get the most recent message across all channels
+                channel_id, message_id = await Repository.get_latest_message()
+                
+                if channel_id and message_id:
+                    await self.handle_message(channel_id, message_id)
+                    logger.info(f"Triggered periodic repost from channel {channel_id}")
+                else:
+                    logger.warning("No recent messages found for periodic repost")
+                    
             except asyncio.CancelledError:
                 logger.info("Repost task cancelled")
                 break
@@ -86,9 +92,9 @@ class RunningState(BotState):
 class BotContext:
     """Context class that maintains current bot state"""
     
-    def __init__(self, bot, source_channel: str):
+    def __init__(self, bot, config):
         self.bot = bot
-        self.source_channel = source_channel
+        self.config = config
         self.state: BotState = IdleState(self)
     
     async def start(self) -> None:
@@ -97,11 +103,11 @@ class BotContext:
     async def stop(self) -> None:
         await self.state.stop()
     
-    async def handle_message(self, message_id: int) -> None:
-        await self.state.handle_message(message_id)
+    async def handle_message(self, channel_id: str, message_id: int) -> None:
+        await self.state.handle_message(channel_id, message_id)
     
-    async def _forward_message(self, message_id: int) -> bool:
-        """Forward a message to all target chats"""
+    async def _forward_message(self, channel_id: str, message_id: int) -> bool:
+        """Forward a message to all target chats (groups/supergroups, not channels)"""
         success = False
         target_chats = await Repository.get_target_chats()
         
@@ -110,10 +116,22 @@ class BotContext:
             return False
 
         for chat_id in target_chats:
+            # Skip forwarding to the source channel itself to avoid loops
+            if str(chat_id) == channel_id:
+                logger.info(f"Skipping forward to source channel {chat_id}")
+                continue
+                
             try:
+                # Check if this is a channel (we want to skip forwarding to channels)
+                chat_info = await self.bot.get_chat(chat_id)
+                if chat_info.type == 'channel':
+                    logger.info(f"Skipping forward to channel {chat_id} (channels are not target destinations)")
+                    continue
+                    
+                # Only forward to groups and supergroups
                 await self.bot.forward_message(
                     chat_id=chat_id,
-                    from_chat_id=self.source_channel,
+                    from_chat_id=channel_id,
                     message_id=message_id
                 )
                 await Repository.log_forward(message_id)
@@ -127,7 +145,6 @@ class BotContext:
     async def _notify_owner(self, message: str):
         """Send notification to bot owner"""
         try:
-            from utils.config import Config
-            await self.bot.send_message(Config().owner_id, message)
+            await self.bot.send_message(self.config.owner_id, message)
         except Exception as e:
             logger.error(f"Failed to notify owner: {e}")
