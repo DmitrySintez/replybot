@@ -605,3 +605,45 @@
 2025-04-24 17:46:15.508 | INFO     | __main__:forward_to_all:704 - Forwarded to group чат2 (-4631733408)
 2025-04-26 14:58:47.405 | ERROR    | __main__:<module>:907 - Bot stopped due to error: [WinError 87] The parameter is incorrect
 2025-04-26 14:59:24.489 | ERROR    | __main__:<module>:1190 - Bot stopped due to error: [WinError 87] The parameter is incorrect
+2025-04-26 16:35:46.442 | INFO     | __main__:verify_channel_access:786 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-26 16:35:46.552 | INFO     | __main__:verify_channel_access:790 - Channel member count: 8
+2025-04-26 16:35:46.651 | INFO     | __main__:verify_channel_access:794 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-26 16:35:47.962 | INFO     | __main__:start:846 - Bot started successfully!
+2025-04-26 16:35:49.341 | INFO     | __main__:start:857 - Starting polling with offset 377363095
+2025-04-26 16:36:02.478 | INFO     | __main__:handle_channel_post:611 - Forwarding channel post 66 to all target chats
+2025-04-26 16:36:02.486 | INFO     | __main__:save_last_message:111 - Saved last message ID 66 for channel -1002542068593
+2025-04-26 16:36:02.976 | INFO     | __main__:forward_to_all:704 - Forwarded to supergroup ChatTest (-1002616121376)
+2025-04-26 16:36:03.077 | INFO     | __main__:forward_to_all:695 - Skipping forward to channel -1002542068593
+2025-04-26 16:36:03.303 | INFO     | __main__:forward_to_all:704 - Forwarded to group чат2 (-4631733408)
+2025-04-26 16:40:53.002 | INFO     | __main__:handle_channel_post:594 - Повторная отправка сообщения ID: 66
+2025-04-26 16:40:53.536 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-26 16:40:53.684 | INFO     | __main__:repost_saved_message:639 - Пропускаем пересылку в channel -1002542068593
+2025-04-26 16:40:53.918 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в group чат2 (-4631733408)
+2025-04-26 16:40:53.919 | INFO     | __main__:fallback_repost:723 - Triggered periodic repost
+2025-04-26 16:45:53.921 | INFO     | __main__:handle_channel_post:594 - Повторная отправка сообщения ID: 66
+2025-04-26 16:45:54.466 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-26 16:45:54.592 | INFO     | __main__:repost_saved_message:639 - Пропускаем пересылку в channel -1002542068593
+2025-04-26 16:45:54.814 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в group чат2 (-4631733408)
+2025-04-26 16:45:54.814 | INFO     | __main__:fallback_repost:723 - Triggered periodic repost
+2025-04-26 16:50:54.824 | INFO     | __main__:handle_channel_post:594 - Повторная отправка сообщения ID: 66
+2025-04-26 16:50:55.547 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-26 16:50:55.726 | INFO     | __main__:repost_saved_message:639 - Пропускаем пересылку в channel -1002542068593
+2025-04-26 16:50:56.018 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в group чат2 (-4631733408)
+2025-04-26 16:50:56.018 | INFO     | __main__:fallback_repost:723 - Triggered periodic repost
+2025-04-26 16:55:56.040 | INFO     | __main__:handle_channel_post:594 - Повторная отправка сообщения ID: 66
+2025-04-26 16:55:56.569 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-26 16:55:56.704 | INFO     | __main__:repost_saved_message:639 - Пропускаем пересылку в channel -1002542068593
+2025-04-26 16:55:56.929 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в group чат2 (-4631733408)
+2025-04-26 16:55:56.930 | INFO     | __main__:fallback_repost:723 - Triggered periodic repost
+2025-04-26 17:00:56.933 | INFO     | __main__:handle_channel_post:594 - Повторная отправка сообщения ID: 66
+2025-04-26 17:00:57.474 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-26 17:00:57.608 | INFO     | __main__:repost_saved_message:639 - Пропускаем пересылку в channel -1002542068593
+2025-04-26 17:00:57.894 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в group чат2 (-4631733408)
+2025-04-26 17:00:57.894 | INFO     | __main__:fallback_repost:723 - Triggered periodic repost
+2025-04-26 17:05:57.905 | INFO     | __main__:handle_channel_post:594 - Повторная отправка сообщения ID: 66
+2025-04-26 17:05:58.454 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в supergroup ChatTest (-1002616121376)
+2025-04-26 17:05:58.579 | INFO     | __main__:repost_saved_message:639 - Пропускаем пересылку в channel -1002542068593
+2025-04-26 17:05:58.806 | INFO     | __main__:repost_saved_message:651 - Периодически переслано в group чат2 (-4631733408)
+2025-04-26 17:05:58.807 | INFO     | __main__:fallback_repost:723 - Triggered periodic repost
+2025-04-26 17:06:02.867 | INFO     | __main__:fallback_repost:728 - Repost task cancelled
+2025-04-26 17:06:02.868 | INFO     | __main__:<module>:917 - Bot stopped by user
