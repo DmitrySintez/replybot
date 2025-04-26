@@ -1,268 +1,80 @@
 import os
 import asyncio
-from datetime import datetime
-import aiosqlite
-from dotenv import load_dotenv
 from loguru import logger
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from contextlib import asynccontextmanager
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass
-from functools import lru_cache
-import weakref
 
-# Load environment variables
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-OWNER_ID = int(os.getenv("OWNER_ID", 0))
-SOURCE_CHANNEL = os.getenv("SOURCE_CHANNEL", "").lstrip('@')  # Remove @ if present
+from utils.config import Config
+from utils.bot_state import BotContext, IdleState, RunningState
+from utils.keyboard_factory import KeyboardFactory
+from database.repository import Repository
+from services.chat_cache import ChatCacheService, CacheObserver, ChatInfo
+from commands.commands import (
+    StartCommand,
+    HelpCommand,
+    SetLastMessageCommand,
+    GetLastMessageCommand,
+    ForwardNowCommand,
+    TestMessageCommand,
+    FindLastMessageCommand
+)
 
-if not all([BOT_TOKEN, OWNER_ID, SOURCE_CHANNEL]):
-    raise ValueError("Missing required environment variables")
-
-# Configure logging
-logger.add("bot.log", rotation="1 MB", compression="zip")
-
-# Cache settings
-CACHE_TTL = 300  # 5 minutes cache for chat info
-MAX_CACHE_SIZE = 100
-
-@dataclass
-class ChatInfo:
-    """Data class for storing chat information"""
-    id: int
-    title: str
-    type: str
-    member_count: Optional[int] = None
-    last_updated: float = 0.0
-
-class DatabaseConnection:
-    """Database connection manager with connection pooling"""
-    _pool = weakref.WeakSet()
-    _max_connections = 5
-    DB_PATH = os.getenv("DB_PATH", "forwarder.db")
-
-    @classmethod
-    @asynccontextmanager
-    async def get_connection(cls):
-        """Get a database connection from the pool"""
-        for conn in cls._pool:
-            if not conn.in_use:
-                conn.in_use = True
-                try:
-                    yield conn
-                finally:
-                    conn.in_use = False
-                return
-
-        if len(cls._pool) < cls._max_connections:
-            conn = await aiosqlite.connect(cls.DB_PATH)
-            conn.in_use = True
-            cls._pool.add(conn)
-            try:
-                yield conn
-            finally:
-                conn.in_use = False
-        else:
-            # Wait for a connection to become available
-            while True:
-                await asyncio.sleep(0.1)
-                for conn in cls._pool:
-                    if not conn.in_use:
-                        conn.in_use = True
-                        try:
-                            yield conn
-                        finally:
-                            conn.in_use = False
-                        return
-
-class Database:
-    """Database operations with connection pooling and prepared statements"""
+class ForwarderBot(CacheObserver):
+    """Main bot class with Observer pattern implementation"""
     
-    @staticmethod
-    async def init_db():
-        async with DatabaseConnection.get_connection() as db:
-            await db.executescript("""
-                CREATE TABLE IF NOT EXISTS config (
-                    key TEXT PRIMARY KEY,
-                    value TEXT
-                );
-                CREATE TABLE IF NOT EXISTS target_chats (
-                    chat_id INTEGER PRIMARY KEY,
-                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE TABLE IF NOT EXISTS forward_stats (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    message_id INTEGER,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE TABLE IF NOT EXISTS last_messages (
-                    channel_id TEXT PRIMARY KEY,
-                    message_id INTEGER,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_forward_stats_timestamp ON forward_stats(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_target_chats_added_at ON target_chats(added_at);
-            """)
-            await db.commit()
-
-    @staticmethod
-    async def get_target_chats() -> List[int]:
-        async with DatabaseConnection.get_connection() as db:
-            async with db.execute("SELECT chat_id FROM target_chats") as cursor:
-                return [row[0] for row in await cursor.fetchall()]
-
-    @staticmethod
-    async def add_target_chat(chat_id: int) -> None:
-        async with DatabaseConnection.get_connection() as db:
-            await db.execute(
-                "INSERT OR IGNORE INTO target_chats (chat_id) VALUES (?)",
-                (chat_id,)
-            )
-            await db.commit()
-
-    @staticmethod
-    async def remove_target_chat(chat_id: int) -> None:
-        async with DatabaseConnection.get_connection() as db:
-            await db.execute("DELETE FROM target_chats WHERE chat_id = ?", (chat_id,))
-            await db.commit()
-
-    @staticmethod
-    async def get_config(key: str, default=None) -> Optional[str]:
-        async with DatabaseConnection.get_connection() as db:
-            async with db.execute(
-                "SELECT value FROM config WHERE key = ?",
-                (key,)
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0] if row else default
-
-    @staticmethod
-    async def set_config(key: str, value: str) -> None:
-        async with DatabaseConnection.get_connection() as db:
-            await db.execute(
-                "INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)",
-                (key, str(value))
-            )
-            await db.commit()
-
-    @staticmethod
-    async def log_forward(message_id: int) -> None:
-        async with DatabaseConnection.get_connection() as db:
-            await db.execute(
-                "INSERT INTO forward_stats (message_id) VALUES (?)",
-                (message_id,)
-            )
-            await db.commit()
-
-    @staticmethod
-    async def save_last_message(channel_id: str, message_id: int) -> None:
-        async with DatabaseConnection.get_connection() as db:
-            await db.execute(
-                "INSERT OR REPLACE INTO last_messages (channel_id, message_id, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)",
-                (channel_id, message_id)
-            )
-            await db.commit()
-
-    @staticmethod
-    async def get_last_message(channel_id: str) -> Optional[int]:
-        async with DatabaseConnection.get_connection() as db:
-            async with db.execute(
-                "SELECT message_id FROM last_messages WHERE channel_id = ?",
-                (channel_id,)
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0] if row else None
-
-    @staticmethod
-    async def get_stats() -> Dict[str, Any]:
-        async with DatabaseConnection.get_connection() as db:
-            async with db.execute("SELECT COUNT(*) FROM forward_stats") as cursor:
-                total = (await cursor.fetchone())[0]
-
-            async with db.execute(
-                "SELECT timestamp FROM forward_stats ORDER BY timestamp DESC LIMIT 1"
-            ) as cursor:
-                last = (await cursor.fetchone() or [None])[0]
-
-            async with db.execute(
-                "SELECT channel_id, message_id, timestamp FROM last_messages"
-            ) as cursor:
-                last_msgs = {
-                    row[0]: {"message_id": row[1], "timestamp": row[2]}
-                    for row in await cursor.fetchall()
-                }
-
-            return {
-                "total_forwards": total,
-                "last_forward": last,
-                "last_messages": last_msgs
-            }
-
-class ChatCache:
-    """Cache manager for chat information"""
-    _cache: Dict[int, ChatInfo] = {}
-    
-    @classmethod
-    async def get_chat_info(cls, bot: Bot, chat_id: int) -> Optional[ChatInfo]:
-        now = datetime.now().timestamp()
-        
-        # Check cache first
-        if chat_id in cls._cache:
-            chat_info = cls._cache[chat_id]
-            if now - chat_info.last_updated < CACHE_TTL:
-                return chat_info
-
-        try:
-            chat = await bot.get_chat(chat_id)
-            member_count = await bot.get_chat_member_count(chat_id)
-            
-            info = ChatInfo(
-                id=chat_id,
-                title=chat.title,
-                type=chat.type,
-                member_count=member_count,
-                last_updated=now
-            )
-            
-            # Update cache
-            cls._cache[chat_id] = info
-            
-            # Cleanup old entries if cache is too large
-            if len(cls._cache) > MAX_CACHE_SIZE:
-                oldest = min(cls._cache.items(), key=lambda x: x[1].last_updated)
-                del cls._cache[oldest[0]]
-            
-            return info
-        except Exception as e:
-            logger.error(f"Error fetching chat info for {chat_id}: {e}")
-            return None
-
-class ForwarderBot:
     def __init__(self):
-        self.bot = Bot(token=BOT_TOKEN)
+        self.config = Config()
+        self.bot = Bot(token=self.config.bot_token)
         self.dp = Dispatcher()
-        self.running = False
-        self._repost_task: Optional[asyncio.Task] = None
+        self.context = BotContext(self.bot, self.config.source_channel)
+        self.cache_service = ChatCacheService()
+        
+        # Register as cache observer
+        self.cache_service.add_observer(self)
+        
         self._setup_handlers()
 
     def _setup_handlers(self):
-        """Initialize message handlers"""
+        """Initialize message handlers with Command pattern"""
         # Owner-only command handlers
-        self.dp.message.register(self.start_command, Command("start"))
-        self.dp.message.register(self.help_command, Command("help"))
-        self.dp.message.register(self.set_last_message_command, Command("setlast"))
-        self.dp.message.register(self.get_last_message_command, Command("getlast"))
-        self.dp.message.register(self.forward_now_command, Command("forwardnow"))
-        self.dp.message.register(self.test_message_command, Command("test"))
-        self.dp.message.register(self.find_last_message_command, Command("findlast"))
+        commands = {
+            "start": StartCommand(
+                self.config.owner_id,
+                isinstance(self.context.state, RunningState)
+            ),
+            "help": HelpCommand(self.config.owner_id),
+            "setlast": SetLastMessageCommand(
+                self.config.owner_id,
+                self.bot,
+                self.config.source_channel
+            ),
+            "getlast": GetLastMessageCommand(
+                self.config.owner_id,
+                self.config.source_channel
+            ),
+            "forwardnow": ForwardNowCommand(
+                self.config.owner_id,
+                self.context
+            ),
+            "test": TestMessageCommand(
+                self.config.owner_id,
+                self.bot,
+                self.config.source_channel
+            ),
+            "findlast": FindLastMessageCommand(
+                self.config.owner_id,
+                self.bot,
+                self.config.source_channel
+            )
+        }
+        
+        for cmd_name, cmd_handler in commands.items():
+            self.dp.message.register(cmd_handler.execute, Command(cmd_name))
         
         # Channel post handler
         self.dp.channel_post.register(self.handle_channel_post)
         
-        # Callback query handlers with optimized registration
+        # Callback query handlers
         callbacks = {
             "toggle_forward": self.toggle_forwarding,
             "interval_": self.set_interval,
@@ -281,290 +93,111 @@ class ForwarderBot:
         # Handler for bot being added to chats
         self.dp.my_chat_member.register(self.handle_chat_member)
 
-    @staticmethod
-    def get_main_keyboard(running: bool = False):
-        """Create main keyboard markup"""
-        kb = InlineKeyboardBuilder()
-        kb.button(
-            text="🔄 Start Forwarding" if not running else "⏹ Stop Forwarding",
-            callback_data="toggle_forward"
-        )
-        kb.button(text="⚙️ Set Interval", callback_data="interval_menu")
-        kb.button(text="📊 Show Stats", callback_data="stats")
-        kb.button(text="📋 List Chats", callback_data="list_chats")
-        kb.adjust(2)
-        return kb.as_markup()
-
-    async def find_last_message_command(self, message: types.Message):
-        """Find last valid message in channel"""
-        if message.from_user.id != OWNER_ID:
-            return
-
-        progress_msg = await message.answer("🔍 Searching for last valid message...")
-        current_id = await Database.get_last_message(SOURCE_CHANNEL)
-        
-        if not current_id:
-            await progress_msg.edit_text("⚠️ No saved message ID. Use /setlast to set manually.")
-            return
-
-        valid_id = None
-        checked_count = 0
-        max_check = 100
-
-        for msg_id in range(current_id, current_id - max_check, -1):
-            if msg_id <= 0:
-                break
-
-            checked_count += 1
-            if checked_count % 10 == 0:
-                try:
-                    await progress_msg.edit_text(f"⏳ Checked {checked_count} messages...")
-                except Exception:
-                    pass
-
-            try:
-                msg = await self.bot.forward_message(
-                    chat_id=OWNER_ID,
-                    from_chat_id=SOURCE_CHANNEL,
-                    message_id=msg_id
-                )
-                valid_id = msg_id
-                break
-            except Exception as e:
-                if any(error in str(e).lower() for error in ["message_id_invalid", "message not found"]):
-                    continue
-                logger.warning(f"Unexpected error checking message {msg_id}: {e}")
-
-        try:
-            await progress_msg.delete()
-        except Exception:
-            pass
-
-        if valid_id:
-            await Database.save_last_message(SOURCE_CHANNEL, valid_id)
-            await message.answer(
-                f"✅ Found valid message (ID: {valid_id}) after checking {checked_count} messages."
-            )
-        else:
-            await message.answer(
-                f"❌ No valid message found after checking {checked_count} messages."
-            )
-
-    async def start_command(self, message: types.Message):
-        """Handler for /start command"""
-        if message.from_user.id != OWNER_ID:
-            return
-        
-        await message.answer(
-            "Welcome to Channel Forwarder Bot!\n"
-            "Use the buttons below to control the bot:\n\n"
-            "Type /help to see available commands.",
-            reply_markup=self.get_main_keyboard(self.running)
-        )
-    
-    async def help_command(self, message: types.Message):
-        """Handler for /help command"""
-        if message.from_user.id != OWNER_ID:
-            return
-            
-        help_text = (
-            "📋 <b>Available commands:</b>\n\n"
-            "/start - Show main menu\n"
-            "/help - Show this help message\n"
-            "/setlast <message_id> - Set the last message ID manually\n"
-            "/getlast - Get current last message ID\n"
-            "/forwardnow - Forward last saved message immediately\n"
-            "/test <message_id> - Test if a message ID exists in channel\n"
-            "/findlast - Automatically find the last valid message in channel\n\n"
-            "Use buttons in the menu to control forwarding and settings."
-        )
-        
-        await message.answer(help_text, parse_mode="HTML")
-
-    async def set_last_message_command(self, message: types.Message):
-        """Handler for /setlast command"""
-        if message.from_user.id != OWNER_ID:
-            return
-
-        args = message.text.split()
-        if len(args) != 2:
-            await message.answer("Usage: /setlast <message_id>")
-            return
-
-        try:
-            message_id = int(args[1])
-            
-            # Test message existence
-            try:
-                # Forward message to verify it exists
-                test_msg = await self.bot.forward_message(
-                    chat_id=OWNER_ID,
-                    from_chat_id=SOURCE_CHANNEL,
-                    message_id=message_id
-                )
-                await Database.save_last_message(SOURCE_CHANNEL, message_id)
-                await message.answer(f"✅ Message ID {message_id} verified and saved.")
-            except Exception as e:
-                await message.answer(f"⚠️ Could not verify message {message_id}: {e}")
-        except ValueError:
-            await message.answer("❌ Message ID must be a number")
-
-    async def get_last_message_command(self, message: types.Message):
-        """Handler for /getlast command"""
-        if message.from_user.id != OWNER_ID:
-            return
-            
-        last_message_id = await Database.get_last_message(SOURCE_CHANNEL)
-        await message.answer(
-            f"📝 Current last message ID: {last_message_id or 'Not set'}"
-        )
-
-    async def forward_now_command(self, message: types.Message):
-        """Handler for /forwardnow command"""
-        if message.from_user.id != OWNER_ID:
-            return
-            
-        last_message_id = await Database.get_last_message(SOURCE_CHANNEL)
-        if not last_message_id:
-            await message.answer("⚠️ No last message ID found. Use /setlast to set one.")
-            return
-            
-        progress_msg = await message.answer(f"🔄 Forwarding message {last_message_id}...")
-        success = await self._forward_message(last_message_id)
-        
-        if success:
-            await progress_msg.edit_text("✅ Message forwarded successfully.")
-        else:
-            await progress_msg.edit_text("❌ Failed to forward message.")
-
-    async def test_message_command(self, message: types.Message):
-        """Handler for /test command"""
-        if message.from_user.id != OWNER_ID:
-            return
-
-        args = message.text.split()
-        if len(args) != 2:
-            await message.answer("Usage: /test <message_id>")
-            return
-
-        try:
-            message_id = int(args[1])
-            progress_msg = await message.answer(f"🔍 Testing message {message_id}...")
-            
-            try:
-                test_msg = await self.bot.forward_message(
-                    chat_id=OWNER_ID,
-                    from_chat_id=SOURCE_CHANNEL,
-                    message_id=message_id
-                )
-                await progress_msg.edit_text(f"✅ Message {message_id} exists and can be forwarded.")
-            except Exception as e:
-                await progress_msg.edit_text(f"❌ Error: {e}")
-        except ValueError:
-            await message.answer("❌ Message ID must be a number")
+    async def on_cache_update(self, chat_id: int, info: ChatInfo) -> None:
+        """Handle chat info cache updates"""
+        logger.info(f"Chat info updated: {info.title} ({chat_id})")
 
     async def toggle_forwarding(self, callback: types.CallbackQuery):
         """Handler for forwarding toggle button"""
-        if callback.from_user.id != OWNER_ID:
+        if callback.from_user.id != self.config.owner_id:
             return
 
-        self.running = not self.running
-        
-        if self.running:
-            interval = int(await Database.get_config("repost_interval", "3600"))
-            self._repost_task = asyncio.create_task(self._fallback_repost(interval))
-            status = "Started"
+        if isinstance(self.context.state, IdleState):
+            await self.context.start()
         else:
-            if self._repost_task and not self._repost_task.done():
-                self._repost_task.cancel()
-            status = "Stopped"
+            await self.context.stop()
 
         await callback.message.edit_text(
-            f"Forwarding {status}!",
-            reply_markup=self.get_main_keyboard(self.running)
+            f"Forwarding {'Started' if isinstance(self.context.state, RunningState) else 'Stopped'}!",
+            reply_markup=KeyboardFactory.create_main_keyboard(
+                isinstance(self.context.state, RunningState)
+            )
         )
         await callback.answer()
 
     async def set_interval(self, callback: types.CallbackQuery):
         """Handler for interval setting"""
-        if callback.from_user.id != OWNER_ID:
+        if callback.from_user.id != self.config.owner_id:
             return
 
         data = callback.data
         if data == "interval_menu":
-            kb = InlineKeyboardBuilder()
-            intervals = [
-                ("5m", 300), ("1h", 3600), ("2h", 7200),
-                ("6h", 21600), ("12h", 43200), ("24h", 86400)
-            ]
-            for label, seconds in intervals:
-                kb.button(text=label, callback_data=f"interval_{seconds}")
-            kb.button(text="Back", callback_data="back_to_main")
-            kb.adjust(3)
-            
             await callback.message.edit_text(
                 "Select repost interval:",
-                reply_markup=kb.as_markup()
+                reply_markup=KeyboardFactory.create_interval_keyboard()
             )
         else:
             interval = int(data.split("_")[1])
-            await Database.set_config("repost_interval", str(interval))
+            await Repository.set_config("repost_interval", str(interval))
             
-            if self.running and self._repost_task:
-                self._repost_task.cancel()
-                self._repost_task = asyncio.create_task(self._fallback_repost(interval))
+            if isinstance(self.context.state, RunningState):
+                await self.context.stop()
+                await self.context.start()
             
             display = f"{interval//3600}h" if interval >= 3600 else f"{interval//60}m"
             await callback.message.edit_text(
                 f"Interval set to {display}",
-                reply_markup=self.get_main_keyboard(self.running)
+                reply_markup=KeyboardFactory.create_main_keyboard(
+                    isinstance(self.context.state, RunningState)
+                )
             )
-        
         await callback.answer()
 
     async def remove_chat(self, callback: types.CallbackQuery):
         """Handler for chat removal"""
-        if callback.from_user.id != OWNER_ID:
+        if callback.from_user.id != self.config.owner_id:
             return
         
         chat_id = int(callback.data.split("_")[1])
-        await Database.remove_target_chat(chat_id)
+        await Repository.remove_target_chat(chat_id)
+        self.cache_service.remove_from_cache(chat_id)
         await self.list_chats(callback)
         await callback.answer("Chat removed!")
 
     async def show_stats(self, callback: types.CallbackQuery):
         """Handler for statistics display"""
-        if callback.from_user.id != OWNER_ID:
+        if callback.from_user.id != self.config.owner_id:
             return
         
-        stats = await Database.get_stats()
-        
-        last_messages_text = "\n\n".join(
-            f"Channel: {channel_id}\n"
-            f"Message ID: {data['message_id']}\n"
-            f"Timestamp: {data['timestamp']}"
-            for channel_id, data in stats.get("last_messages", {}).items()
-        ) or "None"
-        
+        stats = await Repository.get_stats()
         text = (
             "📊 Forwarding Statistics\n\n"
             f"Total forwards: {stats['total_forwards']}\n"
             f"Last forward: {stats['last_forward'] or 'Never'}\n\n"
-            f"Last saved messages:\n{last_messages_text}"
+            "Last saved messages:\n"
         )
+        
+        if stats["last_messages"]:
+            text += "\n".join(
+                f"Channel: {channel_id}\n"
+                f"Message ID: {data['message_id']}\n"
+                f"Timestamp: {data['timestamp']}"
+                for channel_id, data in stats["last_messages"].items()
+            )
+        else:
+            text += "None"
         
         await callback.message.edit_text(
             text,
-            reply_markup=self.get_main_keyboard(self.running)
+            reply_markup=KeyboardFactory.create_main_keyboard(
+                isinstance(self.context.state, RunningState)
+            )
         )
         await callback.answer()
 
     async def list_chats(self, callback: types.CallbackQuery):
         """Handler for chat listing"""
-        if callback.from_user.id != OWNER_ID:
+        if callback.from_user.id != self.config.owner_id:
             return
         
-        chats = await Database.get_target_chats()
+        chats = await Repository.get_target_chats()
+        chat_info = {}
+        
+        for chat_id in chats:
+            info = await self.cache_service.get_chat_info(self.bot, chat_id)
+            if info:
+                chat_info[chat_id] = info.title
+        
         if not chats:
             text = (
                 "No target chats configured.\n"
@@ -572,74 +205,53 @@ class ForwarderBot:
                 "1. Add bot to target chats\n"
                 "2. Make bot admin in source channel"
             )
-        else:
-            text_parts = ["📡 Target Chats:\n\n"]
-            for chat_id in chats:
-                try:
-                    chat_info = await ChatCache.get_chat_info(self.bot, chat_id)
-                    if chat_info:
-                        text_parts.append(
-                            f"• {chat_info.title}\n"
-                            f"  ID: {chat_info.id}\n"
-                            f"  Type: {chat_info.type}\n"
-                            f"  Members: {chat_info.member_count}\n"
-                        )
-                    else:
-                        text_parts.append(f"• Unknown chat ({chat_id})\n")
-                except Exception as e:
-                    text_parts.append(f"• Error getting chat {chat_id}: {e}\n")
-            text = "\n".join(text_parts)
-
-        kb = InlineKeyboardBuilder()
-        for chat_id in chats:
-            kb.button(
-                text=f"❌ Remove {chat_id}",
-                callback_data=f"remove_{chat_id}"
+            markup = KeyboardFactory.create_main_keyboard(
+                isinstance(self.context.state, RunningState)
             )
-        kb.button(text="Back", callback_data="back_to_main")
-        kb.adjust(1)
+        else:
+            text = "📡 Target Chats:\n\n"
+            for chat_id, title in chat_info.items():
+                text += f"• {title} ({chat_id})\n"
+            markup = KeyboardFactory.create_chat_list_keyboard(chat_info)
         
-        await callback.message.edit_text(text, reply_markup=kb.as_markup())
+        await callback.message.edit_text(text, reply_markup=markup)
         await callback.answer()
 
     async def main_menu(self, callback: types.CallbackQuery):
         """Handler for main menu button"""
-        if callback.from_user.id != OWNER_ID:
+        if callback.from_user.id != self.config.owner_id:
             return
+            
         await callback.message.edit_text(
             "Main Menu:",
-            reply_markup=self.get_main_keyboard(self.running)
+            reply_markup=KeyboardFactory.create_main_keyboard(
+                isinstance(self.context.state, RunningState)
+            )
         )
         await callback.answer()
 
     async def handle_channel_post(self, message: types.Message | None):
         """Handler for channel posts"""
-        if not self.running:
-            logger.info("Bot is not running, ignoring post")
-            return
-
         if message is None:
-            last_message_id = await Database.get_last_message(SOURCE_CHANNEL)
-            if not last_message_id:
-                logger.warning("No last message ID saved for repost")
-                return
-            await self._forward_message(last_message_id)
+            await self.context.handle_message(
+                await Repository.get_last_message(self.config.source_channel)
+            )
             return
 
         chat_id = str(message.chat.id)
         username = message.chat.username
         
         is_source = (
-            chat_id == SOURCE_CHANNEL or
-            (username and username.lower() == SOURCE_CHANNEL.lower())
+            chat_id == self.config.source_channel or
+            (username and username.lower() == self.config.source_channel.lower())
         )
             
         if not is_source:
             logger.info(f"Message not from source channel: {chat_id}/{username}")
             return
         
-        await Database.save_last_message(SOURCE_CHANNEL, message.message_id)
-        await self._forward_message(message.message_id)
+        await Repository.save_last_message(self.config.source_channel, message.message_id)
+        await self.context.handle_message(message.message_id)
 
     async def handle_chat_member(self, update: types.ChatMemberUpdated):
         """Handler for bot being added/removed from chats"""
@@ -650,73 +262,28 @@ class ForwarderBot:
         is_member = update.new_chat_member.status in ['member', 'administrator']
         
         if is_member and update.chat.type in ['group', 'supergroup']:
-            await Database.add_target_chat(chat_id)
+            await Repository.add_target_chat(chat_id)
+            self.cache_service.remove_from_cache(chat_id)  # Force cache refresh
             await self._notify_owner(f"Bot added to {update.chat.type} {chat_id}")
         elif not is_member:
-            await Database.remove_target_chat(chat_id)
+            await Repository.remove_target_chat(chat_id)
+            self.cache_service.remove_from_cache(chat_id)
             await self._notify_owner(f"Bot removed from chat {chat_id}")
-
-    async def _forward_message(self, message_id: int) -> bool:
-        """Forward a message to all target chats"""
-        success = False
-        target_chats = await Database.get_target_chats()
-        
-        if not target_chats:
-            logger.warning("No target chats for forwarding")
-            return False
-
-        for chat_id in target_chats:
-            try:
-                chat_info = await ChatCache.get_chat_info(self.bot, chat_id)
-                if not chat_info or chat_info.type not in ['group', 'supergroup']:
-                    continue
-                
-                await self.bot.forward_message(
-                    chat_id=chat_id,
-                    from_chat_id=SOURCE_CHANNEL,
-                    message_id=message_id
-                )
-                await Database.log_forward(message_id)
-                success = True
-                logger.info(f"Forwarded to {chat_info.title} ({chat_id})")
-            except Exception as e:
-                logger.error(f"Error forwarding to {chat_id}: {e}")
-
-        return success
-
-    async def _fallback_repost(self, interval: int):
-        """Periodic repost task"""
-        while True:
-            try:
-                await asyncio.sleep(interval)
-                
-                if not self.running:
-                    break
-                
-                await self.handle_channel_post(None)
-                logger.info("Triggered periodic repost")
-                
-            except asyncio.CancelledError:
-                logger.info("Repost task cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Error in fallback repost: {e}")
-                await asyncio.sleep(60)
 
     async def _notify_owner(self, message: str):
         """Send notification to bot owner"""
         try:
-            await self.bot.send_message(OWNER_ID, message)
+            await self.bot.send_message(self.config.owner_id, message)
         except Exception as e:
             logger.error(f"Failed to notify owner: {e}")
 
     async def start(self):
         """Start the bot"""
-        await Database.init_db()
+        await Repository.init_db()
         
         # Set default interval if not set
-        if not await Database.get_config("repost_interval"):
-            await Database.set_config("repost_interval", "3600")
+        if not await Repository.get_config("repost_interval"):
+            await Repository.set_config("repost_interval", "3600")
         
         logger.info("Bot started successfully!")
         try:
@@ -731,10 +298,11 @@ class ForwarderBot:
 
             await self.dp.start_polling(self.bot, offset=offset)
         finally:
+            self.cache_service.remove_observer(self)
             await self.bot.session.close()
 
 async def main():
-    """Main entry point with improved error handling and resource management"""
+    """Main entry point with improved error handling"""
     lock_file = "bot.lock"
     
     if os.path.exists(lock_file):
@@ -755,18 +323,8 @@ async def main():
         with open(lock_file, 'w') as f:
             f.write(str(os.getpid()))
 
-        # Initialize database
-        await Database.init_db()
-        
         bot = ForwarderBot()
-        
-        # Start bot with proper cleanup
-        try:
-            await bot.start()
-        finally:
-            if bot._repost_task and not bot._repost_task.done():
-                bot._repost_task.cancel()
-            await bot.bot.session.close()
+        await bot.start()
     finally:
         try:
             os.remove(lock_file)
