@@ -647,3 +647,8 @@
 2025-04-26 17:05:58.807 | INFO     | __main__:fallback_repost:723 - Triggered periodic repost
 2025-04-26 17:06:02.867 | INFO     | __main__:fallback_repost:728 - Repost task cancelled
 2025-04-26 17:06:02.868 | INFO     | __main__:<module>:917 - Bot stopped by user
+2025-04-26 17:49:31.154 | INFO     | __main__:verify_channel_access:786 - Successfully connected to channel: ТЕст ченнел (-1002542068593)
+2025-04-26 17:49:31.261 | INFO     | __main__:verify_channel_access:790 - Channel member count: 8
+2025-04-26 17:49:31.369 | INFO     | __main__:verify_channel_access:794 - Bot status in channel: ChatMemberStatus.ADMINISTRATOR
+2025-04-26 17:49:32.829 | INFO     | __main__:start:846 - Bot started successfully!
+2025-04-26 17:49:33.159 | INFO     | __main__:<module>:917 - Bot stopped by user
