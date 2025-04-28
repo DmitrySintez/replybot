@@ -12,6 +12,16 @@ class DatabaseConnectionPool:
     _pool = weakref.WeakSet()
     
     @classmethod
+    async def close_all(cls):
+        """Close all database connections"""
+        for conn in cls._pool:
+            try:
+                await conn.close()
+            except Exception as e:
+                logger.error(f"Error closing connection: {e}")
+        cls._pool.clear()
+    
+    @classmethod
     @asynccontextmanager
     async def get_connection(cls):
         """Get a database connection from the pool"""
@@ -51,6 +61,11 @@ class DatabaseConnectionPool:
 
 class Repository:
     """Repository pattern implementation for database operations"""
+    
+    @staticmethod
+    async def close_db() -> None:
+        """Close all database connections"""
+        await DatabaseConnectionPool.close_all()
     
     # Add to Repository.init_db()
     async def init_db() -> None:

@@ -734,6 +734,7 @@ async def main():
         await bot.start()
     finally:
         try:
+            await Repository.close_db()  # Ensure DB is closed even if shutdown fails
             os.remove(lock_file)
         except Exception as e:
             logger.error(f"Failed to remove lock file: {e}")
