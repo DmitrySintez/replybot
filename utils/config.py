@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 from typing import List, Optional
@@ -82,13 +83,38 @@ class Config:
         except Exception as e:
             from loguru import logger
             logger.error(f"Failed to save channels to config: {e}")
-    
+            
+    # Add this method to ForwarderBot class in bot.py
+    async def find_latest_message(self, channel_id: str) -> Optional[int]:
+        """Helper method to find the latest valid message ID in a channel"""
+        try:
+            # Start with a reasonably high message ID and go backwards
+            for test_id in range(10000, 0, -1):
+                try:
+                    msg = await self.bot.get_messages(channel_id, test_id)
+                    if msg and not msg.empty:
+                        return test_id
+                except Exception:
+                    # Skip errors for non-existent messages
+                    pass
+                
+                # Don't check too many messages to avoid rate limits
+                if test_id % 1000 == 0:
+                    await asyncio.sleep(1)
+                    
+            return None
+        except Exception as e:
+            logger.error(f"Error finding latest message in channel {channel_id}: {e}")
+            return None
+            
     def add_source_channel(self, channel: str) -> bool:
-        """Add a new source channel and save to config"""
+        """Add a new source channel, save to config, and attempt to find latest message"""
         channel = channel.lstrip('@')
         if channel and channel not in self.source_channels:
             self.source_channels.append(channel)
             self._save_channels_to_config()
+            # Signal that we need to find the latest message in this channel
+            asyncio.create_task(self._find_latest_message(channel))
             return True
         return False
     

@@ -3,6 +3,7 @@ from typing import Optional
 import asyncio
 from loguru import logger
 from database.repository import Repository
+from datetime import datetime
 
 class BotState(ABC):
     """Abstract base class for bot states"""
@@ -42,6 +43,8 @@ class IdleState(BotState):
         # Don't forward messages in idle state
         logger.info("Bot is idle, not forwarding messages")
 
+# utils/bot_state.py - Updated RunningState class
+
 class RunningState(BotState):
     """State when bot is actively forwarding messages"""
     
@@ -50,6 +53,7 @@ class RunningState(BotState):
         self.interval = interval
         self._repost_task: Optional[asyncio.Task] = None
         self.auto_forward = auto_forward
+        self._channel_last_post = {}  # Track last post time for each channel
         self._start_repost_task()
     
     def _start_repost_task(self):
@@ -78,32 +82,73 @@ class RunningState(BotState):
     async def handle_message(self, channel_id: str, message_id: int) -> None:
         if self.auto_forward:
             await self.context._forward_message(channel_id, message_id)
+            # Update last post time for this channel
+            self._channel_last_post[channel_id] = datetime.now().timestamp()
         else:
             logger.info("Auto-forwarding is disabled, skipping message")
     
+    async def _get_next_channel_to_repost(self):
+        """Get the next channel that should be reposted based on intervals"""
+        now = datetime.now().timestamp()
+        source_channels = self.context.config.source_channels
+        
+        if not source_channels:
+            return None
+            
+        # Default interval between channels is 5 minutes (300 seconds)
+        channel_interval = 300
+        
+        # Find the channel that hasn't been posted for the longest time
+        oldest_channel = None
+        oldest_time = now
+        
+        for channel in source_channels:
+            last_post_time = self._channel_last_post.get(channel, 0)
+            
+            # If this channel hasn't been posted for more than the interval
+            # and is older than our current oldest, select it
+            if now - last_post_time >= channel_interval and last_post_time < oldest_time:
+                oldest_channel = channel
+                oldest_time = last_post_time
+                
+        return oldest_channel
+    
+    # Update RunningState._fallback_repost method in utils/bot_state.py
     async def _fallback_repost(self):
-        """Periodic repost task for most recent message across all channels"""
+        """Periodic repost task rotating through source channels with proper intervals"""
         while True:
             try:
-                await asyncio.sleep(self.interval)
+                # Check every minute for a channel that needs reposting
+                await asyncio.sleep(60)
                 
-                # Get the most recent message across all channels
-                # This line is probably causing the error:
-                last_messages = await Repository.get_all_last_messages()  # Make sure to await this!
+                # Find the next channel to repost
+                channel_id = await self._get_next_channel_to_repost()
                 
-                if not last_messages:
-                    logger.warning("No recent messages found for periodic repost")
+                if not channel_id:
+                    # No channel needs reposting yet
                     continue
                     
-                # Now you can use .keys() because last_messages is a dictionary, not a coroutine
-                channel_id, message_id = await Repository.get_latest_message()
+                # Get last message for this channel
+                message_id = await Repository.get_last_message(channel_id)
                 
-                if channel_id and message_id:
-                    # Call _forward_message directly to bypass auto_forward check
-                    await self.context._forward_message(channel_id, message_id)
-                    logger.info(f"Triggered periodic repost from channel {channel_id}")
-                else:
-                    logger.warning("No recent messages found for periodic repost")
+                if not message_id:
+                    logger.warning(f"No message found for channel {channel_id}")
+                    
+                    # Mark this channel as recently processed to avoid constantly checking it
+                    now = datetime.now().timestamp()
+                    self._channel_last_post[channel_id] = now
+                    
+                    # Try to find a message in another channel instead
+                    continue
+                
+                # Forward the message
+                await self.context._forward_message(channel_id, message_id)
+                
+                # Update last post time for this channel
+                now = datetime.now().timestamp()
+                self._channel_last_post[channel_id] = now
+                
+                logger.info(f"Triggered periodic repost from channel {channel_id}")
                     
             except asyncio.CancelledError:
                 logger.info("Repost task cancelled")

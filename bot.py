@@ -39,6 +39,7 @@ class ForwarderBot(CacheObserver):
         
         self._setup_handlers()
 
+    # Update in bot.py - ForwarderBot.add_channel_command method
     async def add_channel_command(self, message: types.Message):
         """Command to add a channel directly"""
         if message.from_user.id != self.config.owner_id:
@@ -81,8 +82,57 @@ class ForwarderBot(CacheObserver):
                     f"✅ Successfully added channel: {chat.title} ({chat.id})"
                 )
                 logger.info(f"Added channel: {chat.title} ({chat.id})")
+                
+                # Now find and save the latest message ID
+                progress_msg = await message.reply(f"🔍 Searching for latest message in channel {chat.id}...")
+                
+                # Try to find the last message ID
+                try:
+                    # Start with a reasonably high message ID and try to access messages backwards
+                    latest_id = None
+                    start_id = 10000  # Start with a reasonable high number
+                    
+                    # Try to access more recent messages first
+                    for test_id in range(start_id, 0, -1):
+                        try:
+                            # Just try to get message info, no need to forward
+                            msg = await self.bot.get_messages(chat.id, test_id)
+                            if msg and not msg.empty:
+                                latest_id = test_id
+                                break
+                        except Exception:
+                            # Skip errors for non-existent messages
+                            pass
+                        
+                        # Add some progress updates
+                        if test_id % 1000 == 0:
+                            try:
+                                await progress_msg.edit_text(f"🔍 Searching for messages... (checked up to ID {test_id})")
+                            except:
+                                pass
+                    
+                    if latest_id:
+                        # Found a valid message, save it
+                        await Repository.save_last_message(str(chat.id), latest_id)
+                        await progress_msg.edit_text(f"✅ Found and saved latest message (ID: {latest_id}) in channel {chat.title}")
+                    else:
+                        await progress_msg.edit_text(f"⚠️ Could not find any messages in channel {chat.title}. Please use /findlast {chat.id} manually.")
+                except Exception as e:
+                    logger.error(f"Error finding latest message in channel {chat.id}: {e}")
+                    await progress_msg.edit_text(f"⚠️ Error finding latest message: {e}. Please use /findlast {chat.id} manually.")
+                    
             else:
                 await message.reply("⚠️ This channel is already configured")
+        
+        except Exception as e:
+            await message.reply(
+                f"❌ Error accessing channel: {e}\n\n"
+                "Make sure:\n"
+                "• The channel ID/username is correct\n"
+                "• The bot is a member of the channel\n"
+                "• The bot is an administrator in the channel"
+            )
+            logger.error(f"Failed to add channel {channel}: {e}")
         
         except Exception as e:
             await message.reply(
