@@ -3,6 +3,7 @@ import os
 import json
 from typing import List, Optional
 from dotenv import load_dotenv
+from loguru import logger
 
 class Config:
     """Singleton configuration class"""
@@ -81,7 +82,6 @@ class Config:
             with open('bot_config.json', 'w') as f:
                 json.dump(config, f, indent=4)
         except Exception as e:
-            from loguru import logger
             logger.error(f"Failed to save channels to config: {e}")
             
     # Add this method to ForwarderBot class in bot.py
@@ -107,17 +107,15 @@ class Config:
             logger.error(f"Error finding latest message in channel {channel_id}: {e}")
             return None
             
+    # Fix in utils/config.py
     def add_source_channel(self, channel: str) -> bool:
-        """Add a new source channel, save to config, and attempt to find latest message"""
+        """Add a new source channel and save to config"""
         channel = channel.lstrip('@')
         if channel and channel not in self.source_channels:
             self.source_channels.append(channel)
             self._save_channels_to_config()
-            # Signal that we need to find the latest message in this channel
-            asyncio.create_task(self._find_latest_message(channel))
             return True
         return False
-    
     def remove_source_channel(self, channel: str) -> bool:
         """Remove a source channel and update config"""
         channel = channel.lstrip('@')

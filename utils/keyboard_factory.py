@@ -23,6 +23,7 @@ class KeyboardFactory:
         kb.adjust(2)
         return kb.as_markup()
 
+    # In utils/keyboard_factory.py
     @staticmethod
     def create_interval_keyboard() -> Any:
         """Create interval selection keyboard"""
@@ -90,19 +91,25 @@ class KeyboardFactory:
         kb.adjust(3)
         return kb.as_markup()
 
+    # utils/keyboard_factory.py - Update create_channel_management_keyboard
     @staticmethod
     def create_channel_management_keyboard(channels: List[str]) -> Any:
         """Create channel management keyboard"""
         kb = InlineKeyboardBuilder()
         kb.button(text="➕ Add Channel", callback_data="add_channel")
         
-        # Add remove buttons for each channel
+        if len(channels) >= 2:
+            kb.button(text="⏱️ Set Channel Intervals", callback_data="channel_intervals")
+        
+        # Add buttons for each channel
         for channel in channels:
             # Truncate channel name if too long
-            display_name = channel[:20] + "..." if len(channel) > 23 else channel
+            display_name = channel[:15] + "..." if len(channel) > 18 else channel
+            
+            # Combined button for find and remove
             kb.button(
-                text=f"❌ {display_name}",
-                callback_data=f"remove_channel_{channel}"
+                text=f"🔍❌ Manage ({display_name})",
+                callback_data=f"manage_channel_{channel}"
             )
         
         kb.button(text="Back", callback_data="back_to_main")
