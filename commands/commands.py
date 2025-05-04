@@ -1,4 +1,3 @@
-# commands/commands.py (updated version)
 from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from loguru import logger
@@ -15,24 +14,24 @@ class StartCommand(Command):
 
     async def _handle(self, message: types.Message) -> None:
         await message.answer(
-            "Welcome to Multi-Channel Forwarder Bot!\n"
-            "Use the buttons below to control the bot:\n\n"
-            "Type /help to see available commands.",
+            "Добро пожаловать в бот для пересылки сообщений из каналов!\n"
+            "Используйте кнопки ниже для управления ботом:\n\n"
+            "Введите /help для просмотра доступных команд.",
             reply_markup=KeyboardFactory.create_main_keyboard(self.running)
         )
 
 class HelpCommand(Command):
     async def _handle(self, message: types.Message) -> None:
         help_text = (
-            "📋 <b>Available commands:</b>\n\n"
-            "/start - Show main menu\n"
-            "/help - Show this help message\n"
-            "/setlast <channel_id> <message_id> - Set the last message ID manually\n"
-            "/getlast - Get current last message IDs for all channels\n"
-            "/forwardnow - Forward latest message immediately\n"
-            "/test <channel_id> <message_id> - Test if a message ID exists in channel\n"
-            "/findlast <channel_id> - Find the last valid message in channel\n\n"
-            "Use buttons in the menu to control forwarding and settings."
+            "📋 <b>Доступные команды:</b>\n\n"
+            "/start - Показать главное меню\n"
+            "/help - Показать это сообщение\n"
+            "/setlast <channel_id> <message_id> - Установить ID последнего сообщения вручную\n"
+            "/getlast - Получить текущие ID последних сообщений для всех каналов\n"
+            "/forwardnow - Немедленно переслать последнее сообщение\n"
+            "/test <channel_id> <message_id> - Проверить существование сообщения в канале\n"
+            "/findlast <channel_id> - Найти последнее валидное сообщение в канале\n\n"
+            "Используйте кнопки в меню для управления пересылкой и настройками."
         )
         await message.answer(help_text, parse_mode="HTML")
 
@@ -45,7 +44,7 @@ class SetLastMessageCommand(Command):
         args = message.text.split()
         
         if len(args) != 3:
-            await message.answer("Usage: /setlast <channel_id> <message_id>")
+            await message.answer("Использование: /setlast <channel_id> <message_id>")
             return
 
         try:
@@ -53,22 +52,20 @@ class SetLastMessageCommand(Command):
             message_id = int(args[2])
             
             try:
-                # Verify the channel exists and message is valid
                 test_msg = await self.bot.forward_message(
                     chat_id=self.owner_id,
                     from_chat_id=channel_id,
                     message_id=message_id
                 )
                 
-                # Save the message
                 await Repository.save_last_message(channel_id, message_id)
-                await message.answer(f"✅ Message ID {message_id} from channel {channel_id} verified and saved.")
+                await message.answer(f"✅ Сообщение ID {message_id} из канала {channel_id} проверено и сохранено.")
             
             except Exception as e:
-                await message.answer(f"⚠️ Could not verify message in channel {channel_id}: {e}")
+                await message.answer(f"⚠️ Не удалось проверить сообщение в канале {channel_id}: {e}")
         
         except ValueError:
-            await message.answer("❌ Message ID must be a number")
+            await message.answer("❌ ID сообщения должен быть числом")
 
 class GetLastMessageCommand(Command):
     def __init__(self, owner_id: int):
@@ -78,15 +75,15 @@ class GetLastMessageCommand(Command):
         last_messages = await Repository.get_all_last_messages()
         
         if not last_messages:
-            await message.answer("❌ No saved message IDs found.")
+            await message.answer("❌ Не найдено сохраненных ID сообщений.")
             return
             
-        response = "📝 Current last messages by channel:\n\n"
+        response = "📝 Текущие последние сообщения по каналам:\n\n"
         
         for channel_id, data in last_messages.items():
-            response += f"Channel: {channel_id}\n"
-            response += f"Message ID: {data['message_id']}\n"
-            response += f"Timestamp: {data['timestamp']}\n\n"
+            response += f"Канал: {channel_id}\n"
+            response += f"ID сообщения: {data['message_id']}\n"
+            response += f"Время: {data['timestamp']}\n\n"
         
         await message.answer(response)
 
@@ -96,19 +93,18 @@ class ForwardNowCommand(Command):
         self.context = bot_context
 
     async def _handle(self, message: types.Message) -> None:
-        # Get the most recent message across all channels
         channel_id, message_id = await Repository.get_latest_message()
         
         if not channel_id or not message_id:
             await message.answer(
-                "⚠️ No recent messages found. Add channels and messages first."
+                "⚠️ Не найдено недавних сообщений. Сначала добавьте каналы и сообщения."
             )
             return
 
-        progress_msg = await message.answer(f"🔄 Forwarding message {message_id} from channel {channel_id}...")
+        progress_msg = await message.answer(f"🔄 Пересылаю сообщение {message_id} из канала {channel_id}...")
         
         await self.context.handle_message(channel_id, message_id)
-        await progress_msg.edit_text("✅ Message forwarded successfully.")
+        await progress_msg.edit_text("✅ Сообщение успешно переслано.")
 
 class TestMessageCommand(Command):
     def __init__(self, owner_id: int, bot):
@@ -119,14 +115,14 @@ class TestMessageCommand(Command):
         args = message.text.split()
         
         if len(args) != 3:
-            await message.answer("Usage: /test <channel_id> <message_id>")
+            await message.answer("Использование: /test <channel_id> <message_id>")
             return
 
         try:
             channel_id = args[1]
             message_id = int(args[2])
             
-            progress_msg = await message.answer(f"🔍 Testing message {message_id} in channel {channel_id}...")
+            progress_msg = await message.answer(f"🔍 Проверяю сообщение {message_id} в канале {channel_id}...")
             
             try:
                 test_msg = await self.bot.forward_message(
@@ -134,11 +130,11 @@ class TestMessageCommand(Command):
                     from_chat_id=channel_id,
                     message_id=message_id
                 )
-                await progress_msg.edit_text(f"✅ Message {message_id} in channel {channel_id} exists and can be forwarded.")
+                await progress_msg.edit_text(f"✅ Сообщение {message_id} в канале {channel_id} существует и может быть переслано.")
             except Exception as e:
-                await progress_msg.edit_text(f"❌ Error: {e}")
+                await progress_msg.edit_text(f"❌ Ошибка: {e}")
         except ValueError:
-            await message.answer("❌ Message ID must be a number")
+            await message.answer("❌ ID сообщения должен быть числом")
 
 class FindLastMessageCommand(Command):
     def __init__(self, owner_id: int, bot):
@@ -149,13 +145,12 @@ class FindLastMessageCommand(Command):
         args = message.text.split()
         
         if len(args) != 2:
-            await message.answer("Usage: /findlast <channel_id>")
+            await message.answer("Использование: /findlast <channel_id>")
             return
             
         channel_id = args[1]
-        progress_msg = await message.answer(f"🔍 Searching for last valid message in channel {channel_id}...")
+        progress_msg = await message.answer(f"🔍 Ищу последнее валидное сообщение в канале {channel_id}...")
         
-        # Get last ID for this channel if available
         last_messages = await Repository.get_all_last_messages()
         current_id = None
         
@@ -165,14 +160,12 @@ class FindLastMessageCommand(Command):
                 break
         
         if not current_id:
-            # If no last ID is known, try with a reasonable starting point
             current_id = 1000
         
         valid_id = None
         checked_count = 0
         max_check = 100
 
-        # Search backwards from current_id + some buffer
         for msg_id in range(current_id + 10, current_id - max_check, -1):
             if msg_id <= 0:
                 break
@@ -180,7 +173,7 @@ class FindLastMessageCommand(Command):
             checked_count += 1
             if checked_count % 10 == 0:
                 try:
-                    await progress_msg.edit_text(f"⏳ Checked {checked_count} messages...")
+                    await progress_msg.edit_text(f"⏳ Проверено {checked_count} сообщений...")
                 except Exception:
                     pass
 
@@ -205,9 +198,9 @@ class FindLastMessageCommand(Command):
         if valid_id:
             await Repository.save_last_message(channel_id, valid_id)
             await message.answer(
-                f"✅ Found valid message (ID: {valid_id}) in channel {channel_id} after checking {checked_count} messages."
+                f"✅ Найдено валидное сообщение (ID: {valid_id}) в канале {channel_id} после проверки {checked_count} сообщений."
             )
         else:
             await message.answer(
-                f"❌ No valid message found in channel {channel_id} after checking {checked_count} messages."
+                f"❌ Не найдено валидных сообщений в канале {channel_id} после проверки {checked_count} сообщений."
             )

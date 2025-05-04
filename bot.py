@@ -50,8 +50,8 @@ class ForwarderBot(CacheObserver):
         args = message.text.split(maxsplit=1)
         if len(args) != 2:
             await message.reply(
-                "Usage: /addchannel <channel_id_or_username>\n\n"
-                "Examples:\n"
+                "Использование: /addchannel <channel_id_или_username>\n\n"
+                "Примеры:\n"
                 "• /addchannel -100123456789\n"
                 "• /addchannel mychannel"
             )
@@ -60,7 +60,7 @@ class ForwarderBot(CacheObserver):
         channel = args[1].strip()
         
         if not channel:
-            await message.reply("⚠️ Channel ID/username cannot be empty")
+            await message.reply("⚠️ ID/username канала не может быть пустым")
             return
         
         try:
@@ -73,20 +73,20 @@ class ForwarderBot(CacheObserver):
             
             if member.status != "administrator":
                 await message.reply(
-                    "⚠️ Bot must be an administrator in the channel to forward messages.\n"
-                    "Please add the bot as admin and try again."
+                    "⚠️ Бот должен быть администратором канала для пересылки сообщений.\n"
+                    "Пожалуйста, добавьте бота как администратора и попробуйте снова."
                 )
                 return
             
             # Add channel to configuration
             if self.config.add_source_channel(str(chat.id)):
                 await message.reply(
-                    f"✅ Successfully added channel: {chat.title} ({chat.id})"
+                    f"✅ Канал успешно добавлен: {chat.title} ({chat.id})"
                 )
                 logger.info(f"Added channel: {chat.title} ({chat.id})")
                 
                 # Now find and save the latest message ID
-                progress_msg = await message.reply(f"🔍 Searching for latest message in channel {chat.id}...")
+                progress_msg = await message.reply(f"🔍 Ищу последнее сообщение в канале {chat.id}...")
                 
                 # Try to find the last message ID
                 try:
@@ -109,40 +109,30 @@ class ForwarderBot(CacheObserver):
                         # Add some progress updates
                         if test_id % 1000 == 0:
                             try:
-                                await progress_msg.edit_text(f"🔍 Searching for messages... (checked up to ID {test_id})")
+                                await progress_msg.edit_text(f"🔍 Ищу сообщения... (проверено до ID {test_id})")
                             except:
                                 pass
                     
                     if latest_id:
                         # Found a valid message, save it
                         await Repository.save_last_message(str(chat.id), latest_id)
-                        await progress_msg.edit_text(f"✅ Found and saved latest message (ID: {latest_id}) in channel {chat.title}")
+                        await progress_msg.edit_text(f"✅ Найдено и сохранено последнее сообщение (ID: {latest_id}) в канале {chat.title}")
                     else:
-                        await progress_msg.edit_text(f"⚠️ Could not find any messages in channel {chat.title}. Please use /findlast {chat.id} manually.")
+                        await progress_msg.edit_text(f"⚠️ Не удалось найти сообщения в канале {chat.title}. Используйте /findlast {chat.id} вручную.")
                 except Exception as e:
                     logger.error(f"Error finding latest message in channel {chat.id}: {e}")
-                    await progress_msg.edit_text(f"⚠️ Error finding latest message: {e}. Please use /findlast {chat.id} manually.")
+                    await progress_msg.edit_text(f"⚠️ Ошибка при поиске последнего сообщения: {e}. Используйте /findlast {chat.id} вручную.")
                     
             else:
-                await message.reply("⚠️ This channel is already configured")
+                await message.reply("⚠️ Этот канал уже настроен")
         
         except Exception as e:
             await message.reply(
-                f"❌ Error accessing channel: {e}\n\n"
-                "Make sure:\n"
-                "• The channel ID/username is correct\n"
-                "• The bot is a member of the channel\n"
-                "• The bot is an administrator in the channel"
-            )
-            logger.error(f"Failed to add channel {channel}: {e}")
-        
-        except Exception as e:
-            await message.reply(
-                f"❌ Error accessing channel: {e}\n\n"
-                "Make sure:\n"
-                "• The channel ID/username is correct\n"
-                "• The bot is a member of the channel\n"
-                "• The bot is an administrator in the channel"
+                f"❌ Ошибка доступа к каналу: {e}\n\n"
+                "Убедитесь что:\n"
+                "• ID/username канала указан правильно\n"
+                "• Бот является участником канала\n"
+                "• Бот является администратором канала"
             )
             logger.error(f"Failed to add channel {channel}: {e}")
 
@@ -194,21 +184,21 @@ class ForwarderBot(CacheObserver):
         callbacks = {
             "toggle_forward": self.toggle_forwarding,
             "toggle_auto_forward": self.toggle_auto_forward,
-            "findlast_": self.find_last_message_handler,
-            "add_channel_input": self.add_channel_input,  # Add this
-            "manage_channel_": self.manage_single_channel,  # Add this
+            "add_channel_input": self.add_channel_input,
             "interval_": self.set_interval,
             "interval_between_": self.set_interval,
             "set_interval_": self.set_interval,
-            "remove_": self.remove_chat,
+            "remove_channel_": self.remove_channel,  # Specific handler for channel removal
+            "remove_": self.remove_chat,  # Handler for chat removal
             "stats": self.show_stats,
             "list_chats": self.list_chats,
             "back_to_main": self.main_menu,
             "channels": self.manage_channels,
             "add_channel": self.add_channel_prompt,
-            "remove_channel_": self.remove_channel,
             "channel_intervals": self.manage_channel_intervals,
         }
+        
+        # Register handlers with specific order to avoid conflicts
         for prefix, handler in callbacks.items():
             self.dp.callback_query.register(
                 handler,
@@ -255,47 +245,40 @@ class ForwarderBot(CacheObserver):
         if callback.from_user.id != self.config.owner_id:
             return
         
-        # Extract channel ID from callback data
         channel_id = callback.data.replace("findlast_", "")
         
-        # Update message to show progress
         await callback.message.edit_text(
-            f"🔍 Searching for latest message in channel {channel_id}...",
+            f"🔍 Ищу последнее сообщение в канале {channel_id}...",
             reply_markup=None
         )
         
         try:
-            # Find last valid message
             latest_id = await self.find_latest_message(channel_id)
             
             if latest_id:
-                # Found a valid message, save it
                 await Repository.save_last_message(str(channel_id), latest_id)
                 
-                # Show success message with back button
                 kb = InlineKeyboardBuilder()
-                kb.button(text="Back to Channels", callback_data="channels")
+                kb.button(text="Назад к каналам", callback_data="channels")
                 
                 await callback.message.edit_text(
-                    f"✅ Found and saved latest message (ID: {latest_id}) in channel {channel_id}",
+                    f"✅ Найдено и сохранено последнее сообщение (ID: {latest_id}) в канале {channel_id}",
                     reply_markup=kb.as_markup()
                 )
             else:
-                # No valid message found
                 kb = InlineKeyboardBuilder()
-                kb.button(text="Back to Channels", callback_data="channels")
+                kb.button(text="Назад к каналам", callback_data="channels")
                 
                 await callback.message.edit_text(
-                    f"⚠️ Could not find any valid messages in channel {channel_id}.",
+                    f"⚠️ Не удалось найти валидные сообщения в канале {channel_id}.",
                     reply_markup=kb.as_markup()
                 )
         except Exception as e:
-            # Show error message with back button
             kb = InlineKeyboardBuilder()
-            kb.button(text="Back to Channels", callback_data="channels")
+            kb.button(text="Назад к каналам", callback_data="channels")
             
             await callback.message.edit_text(
-                f"❌ Error finding latest message: {e}",
+                f"❌ Ошибка при поиске последнего сообщения: {e}",
                 reply_markup=kb.as_markup()
             )
         
@@ -326,18 +309,16 @@ class ForwarderBot(CacheObserver):
         if callback.from_user.id != self.config.owner_id:
             return
         
-        # Register a message handler for the next message
         self.awaiting_channel_input = callback.from_user.id
         
-        # Create a keyboard with cancel button
         kb = InlineKeyboardBuilder()
-        kb.button(text="Cancel", callback_data="channels")
+        kb.button(text="Отмена", callback_data="channels")
         
         await callback.message.edit_text(
-            "Please enter the channel ID or username to add:\n\n"
-            "• For public channels: Enter the username without @\n"
-            "• For private channels: Enter the channel ID (starts with -100...)\n\n"
-            "Send the ID/username as a message 💬",
+            "Пожалуйста, введите ID канала или username для добавления:\n\n"
+            "• Для публичных каналов: введите username без @\n"
+            "• Для приватных каналов: введите ID канала (начинается с -100...)\n\n"
+            "Отправьте ID/username сообщением 💬",
             reply_markup=kb.as_markup()
         )
         await callback.answer()
@@ -351,103 +332,85 @@ class ForwarderBot(CacheObserver):
         channel = message.text.strip()
         
         if not channel:
-            await message.reply("⚠️ Channel ID/username cannot be empty")
+            await message.reply("⚠️ ID/username канала не может быть пустым")
             return
         
-        # Reset awaiting state
         self.awaiting_channel_input = None
         
-        # Create progress message
-        progress_msg = await message.reply("🔄 Checking channel access...")
+        progress_msg = await message.reply("🔄 Проверяю доступ к каналу...")
         
         try:
-            # Try to get basic info about the channel
             chat = await self.bot.get_chat(channel)
             
-            # Check if bot is an admin in the channel
             bot_id = (await self.bot.get_me()).id
             member = await self.bot.get_chat_member(chat.id, bot_id)
             
             if member.status != "administrator":
-                # Not an admin, show error
                 kb = InlineKeyboardBuilder()
-                kb.button(text="Back to Channels", callback_data="channels")
+                kb.button(text="Назад к каналам", callback_data="channels")
                 
                 await progress_msg.edit_text(
-                    "⚠️ Bot must be an administrator in the channel.\n"
-                    "Please add the bot as admin and try again.",
+                    "⚠️ Бот должен быть администратором канала.\n"
+                    "Пожалуйста, добавьте бота как администратора и попробуйте снова.",
                     reply_markup=kb.as_markup()
                 )
                 return
             
-            # Add channel to configuration
             if self.config.add_source_channel(str(chat.id)):
-                # Update progress for finding latest message
-                await progress_msg.edit_text(f"✅ Added channel: {chat.title} ({chat.id})\n\n🔍 Now searching for latest message...")
+                await progress_msg.edit_text(f"✅ Добавлен канал: {chat.title} ({chat.id})\n\n🔍 Теперь ищу последнее сообщение...")
                 
-                # Try to find the last message ID using the bot's method, not config's
                 try:
                     latest_id = await self.find_latest_message(str(chat.id))
                     
                     if latest_id:
-                        # Found a valid message, save it
                         await Repository.save_last_message(str(chat.id), latest_id)
                         
-                        # Show success with back button
                         kb = InlineKeyboardBuilder()
-                        kb.button(text="Back to Channels", callback_data="channels")
+                        kb.button(text="Назад к каналам", callback_data="channels")
                         
                         await progress_msg.edit_text(
-                            f"✅ Added channel: {chat.title} ({chat.id})\n"
-                            f"✅ Found and saved latest message (ID: {latest_id})",
+                            f"✅ Добавлен канал: {chat.title} ({chat.id})\n"
+                            f"✅ Найдено и сохранено последнее сообщение (ID: {latest_id})",
                             reply_markup=kb.as_markup()
                         )
                     else:
-                        # No valid message found
                         kb = InlineKeyboardBuilder()
-                        kb.button(text="Find Latest Message", callback_data=f"findlast_{chat.id}")
-                        kb.button(text="Back to Channels", callback_data="channels")
-                        kb.adjust(1)
+                        kb.button(text="Назад к каналам", callback_data="channels")
                         
                         await progress_msg.edit_text(
-                            f"✅ Added channel: {chat.title} ({chat.id})\n"
-                            f"⚠️ Could not find any valid messages. Click button below to try finding the latest message.",
+                            f"✅ Добавлен канал: {chat.title} ({chat.id})\n"
+                            f"⚠️ Не удалось найти валидные сообщения. Будет использоваться следующее сообщение в канале.",
                             reply_markup=kb.as_markup()
                         )
                 except Exception as e:
                     logger.error(f"Error finding latest message: {e}")
                     
-                    # Show button to manually find message
                     kb = InlineKeyboardBuilder()
-                    kb.button(text="Find Latest Message", callback_data=f"findlast_{chat.id}")
-                    kb.button(text="Back to Channels", callback_data="channels")
-                    kb.adjust(1)
+                    kb.button(text="Назад к каналам", callback_data="channels")
                     
                     await progress_msg.edit_text(
-                        f"✅ Added channel: {chat.title} ({chat.id})\n"
-                        f"⚠️ Error finding latest message. Click button below to try manually.",
+                        f"✅ Добавлен канал: {chat.title} ({chat.id})\n"
+                        f"⚠️ Ошибка при поиске последнего сообщения.",
                         reply_markup=kb.as_markup()
                     )
             else:
-                # Channel already configured
                 kb = InlineKeyboardBuilder()
-                kb.button(text="Back to Channels", callback_data="channels")
+                kb.button(text="Назад к каналам", callback_data="channels")
                 
                 await progress_msg.edit_text(
-                    f"⚠️ Channel {chat.title} is already configured.",
+                    f"⚠️ Канал {chat.title} уже настроен.",
                     reply_markup=kb.as_markup()
                 )
         except Exception as e:
-            # Access error
             kb = InlineKeyboardBuilder()
-            kb.button(text="Back to Channels", callback_data="channels")
+            kb.button(text="Назад к каналам", callback_data="channels")
             
             await progress_msg.edit_text(
-                f"❌ Error accessing channel: {e}\n\n"
-                "Make sure:\n"
-                "• The channel ID/username is correct\n"
-                "• The bot is a member of the channel\n"
-                "• The bot is an administrator in the channel",
+                f"❌ Ошибка доступа к каналу: {e}\n\n"
+                "Убедитесь что:\n"
+                "• ID/username канала указан правильно\n"
+                "• Бот является участником канала\n"
+                "• Бот является администратором канала",
                 reply_markup=kb.as_markup()
             )
             logger.error(f"Failed to add channel {channel}: {e}")
@@ -484,7 +447,7 @@ class ForwarderBot(CacheObserver):
             await self.context.stop()
 
         await callback.message.edit_text(
-            f"Forwarding {'Started' if isinstance(self.context.state, RunningState) else 'Stopped'}!",
+            f"Пересылка {'начата' if isinstance(self.context.state, RunningState) else 'остановлена'}!",
             reply_markup=KeyboardFactory.create_main_keyboard(
                 isinstance(self.context.state, RunningState),
                 isinstance(self.context.state, RunningState) and self.context.state.auto_forward
@@ -502,20 +465,18 @@ class ForwarderBot(CacheObserver):
         
         if len(source_channels) < 2:
             await callback.message.edit_text(
-                "You need at least 2 channels to set intervals between them.",
+                "Вам нужно минимум 2 канала для установки интервалов между ними.",
                 reply_markup=InlineKeyboardBuilder().button(
-                    text="Back", callback_data="channels"
+                    text="Назад", callback_data="channels"
                 ).as_markup()
             )
             await callback.answer()
             return
         
-        # Build a keyboard for channel pairs
         kb = InlineKeyboardBuilder()
         for i, channel in enumerate(source_channels):
             if i < len(source_channels) - 1:
                 next_channel = source_channels[i + 1]
-                # Get channel names if possible
                 try:
                     chat1 = await self.bot.get_chat(channel)
                     chat2 = await self.bot.get_chat(next_channel)
@@ -530,11 +491,11 @@ class ForwarderBot(CacheObserver):
                     callback_data=f"interval_between_{channel}_{next_channel}"
                 )
         
-        kb.button(text="Back", callback_data="channels")
+        kb.button(text="Назад", callback_data="channels")
         kb.adjust(1)
         
         await callback.message.edit_text(
-            "Select channel pair to set forwarding interval:",
+            "Выберите пару каналов для установки интервала пересылки:",
             reply_markup=kb.as_markup()
         )
         await callback.answer()
@@ -616,15 +577,12 @@ class ForwarderBot(CacheObserver):
 
         data = callback.data
         
-        # Check if this is a channel interval callback
         if "interval_between_" in data:
-            # Handle the channel interval setting UI
             channel_parts = data.split('_')
             if len(channel_parts) >= 4:
                 channel1 = channel_parts[2]
                 channel2 = channel_parts[3]
                 
-                # Get channel names for display
                 try:
                     chat1 = await self.bot.get_chat(channel1)
                     chat2 = await self.bot.get_chat(channel2)
@@ -635,29 +593,24 @@ class ForwarderBot(CacheObserver):
                     name2 = channel2
                 
                 await callback.message.edit_text(
-                    f"Set interval between forwarding from:\n"
+                    f"Установите интервал между пересылкой из:\n"
                     f"{name1} → {name2}",
                     reply_markup=KeyboardFactory.create_channel_interval_options(channel1, channel2)
                 )
                 await callback.answer()
             else:
-                await callback.answer("Invalid channel selection")
-        # Check if this is setting a specific channel interval
+                await callback.answer("Неверный выбор канала")
         elif "set_interval_" in data:
-            # Parse data: set_interval_channel1_channel2_seconds
             parts = data.split('_')
             if len(parts) >= 5:
                 channel1 = parts[2]
                 channel2 = parts[3]
                 interval = int(parts[4])
                 
-                # Save the interval to your database
                 await Repository.set_channel_interval(channel1, channel2, interval)
                 
-                # Format interval for display
-                display = f"{interval//3600}h" if interval >= 3600 else f"{interval//60}m"
+                display = f"{interval//3600}ч" if interval >= 3600 else f"{interval//60}м"
                 
-                # Get channel names for display
                 try:
                     chat1 = await self.bot.get_chat(channel1)
                     chat2 = await self.bot.get_chat(channel2)
@@ -668,66 +621,59 @@ class ForwarderBot(CacheObserver):
                     name2 = channel2
                 
                 await callback.message.edit_text(
-                    f"✅ Interval set to {display} between:\n"
+                    f"✅ Интервал установлен на {display} между:\n"
                     f"{name1} → {name2}",
                     reply_markup=InlineKeyboardBuilder().button(
-                        text="Back to Intervals", callback_data="channel_intervals"
+                        text="Назад к интервалам", callback_data="channel_intervals"
                     ).as_markup()
                 )
                 await callback.answer()
             else:
-                await callback.answer("Invalid interval selection")
+                await callback.answer("Неверный выбор интервала")
+        
         # Regular global interval setting
-        # Menu for selecting interval
         if data == "interval_menu":
             await callback.message.edit_text(
-                "Select repost interval:",
+                "Выберите интервал повторной отправки:",
                 reply_markup=KeyboardFactory.create_interval_keyboard()
             )
         elif data.startswith("interval_") and not "between" in data and not "menu" in data:
             try:
-                # Get interval value
                 interval = int(data.split("_")[1])
                 
-                # Save to config
                 await Repository.set_config("repost_interval", str(interval))
                 
-                # Apply to current state if running
                 if isinstance(self.context.state, RunningState):
-                    # Important: Reset all timing when changing interval
                     self.context.state.interval = interval
                     
-                    # Reset all channel last post times to now
                     now = datetime.now().timestamp()
                     for channel in self.context.config.source_channels:
                         self.context.state._channel_last_post[channel] = now
                     
                     self.context.state._last_global_post_time = now
                     
-                    # Notify about change
-                    display = f"{interval//3600}h" if interval >= 3600 else f"{interval//60}m"
+                    display = f"{interval//3600}ч" if interval >= 3600 else f"{interval//60}м"
                     await callback.message.edit_text(
-                        f"Interval set to {display}. First post will occur after this interval.",
+                        f"Интервал установлен на {display}. Первая отправка произойдет через этот интервал.",
                         reply_markup=KeyboardFactory.create_main_keyboard(
                             True, 
                             self.context.state.auto_forward
                         )
                     )
                     
-                    logger.info(f"Set forwarding interval to {interval} seconds ({interval//60} minutes)")
+                    logger.info(f"Установлен интервал пересылки {interval} секунд ({interval//60} минут)")
                 else:
-                    # Just save for when bot starts
-                    display = f"{interval//3600}h" if interval >= 3600 else f"{interval//60}m"
+                    display = f"{interval//3600}ч" if interval >= 3600 else f"{interval//60}м"
                     await callback.message.edit_text(
-                        f"Interval set to {display}",
+                        f"Интервал установлен на {display}",
                         reply_markup=KeyboardFactory.create_main_keyboard(
                             False, 
                             False
                         )
                     )
             except Exception as e:
-                logger.error(f"Error setting interval: {e}")
-                await callback.answer("Error setting interval")
+                logger.error(f"Ошибка установки интервала: {e}")
+                await callback.answer("Ошибка установки интервала")
     
 
     async def remove_chat(self, callback: types.CallbackQuery):
@@ -735,11 +681,20 @@ class ForwarderBot(CacheObserver):
         if callback.from_user.id != self.config.owner_id:
             return
         
-        chat_id = int(callback.data.split("_")[1])
-        await Repository.remove_target_chat(chat_id)
-        self.cache_service.remove_from_cache(chat_id)
-        await self.list_chats(callback)
-        await callback.answer("Chat removed!")
+        # Check if this is for removing a chat, not a channel
+        if not callback.data.startswith("remove_") or callback.data.startswith("remove_channel_"):
+            await callback.answer("Эта команда только для удаления чатов")
+            return
+        
+        try:
+            chat_id = int(callback.data.split("_")[1])
+            await Repository.remove_target_chat(chat_id)
+            self.cache_service.remove_from_cache(chat_id)
+            await self.list_chats(callback)
+            await callback.answer("Чат удален!")
+        except ValueError:
+            await callback.answer("Ошибка при удалении чата")
+            logger.error(f"Invalid chat_id in callback data: {callback.data}")
 
     async def show_stats(self, callback: types.CallbackQuery):
         """Handler for statistics display"""
@@ -748,21 +703,21 @@ class ForwarderBot(CacheObserver):
         
         stats = await Repository.get_stats()
         text = (
-            "📊 Forwarding Statistics\n\n"
-            f"Total forwards: {stats['total_forwards']}\n"
-            f"Last forward: {stats['last_forward'] or 'Never'}\n\n"
-            "Last saved messages:\n"
+            "📊 Статистика пересылки\n\n"
+            f"Всего пересылок: {stats['total_forwards']}\n"
+            f"Последняя пересылка: {stats['last_forward'] or 'Никогда'}\n\n"
+            "Последние сохраненные сообщения:\n"
         )
         
         if stats["last_messages"]:
             text += "\n".join(
-                f"Channel: {channel_id}\n"
-                f"Message ID: {data['message_id']}\n"
-                f"Timestamp: {data['timestamp']}"
+                f"Канал: {channel_id}\n"
+                f"ID сообщения: {data['message_id']}\n"
+                f"Время: {data['timestamp']}"
                 for channel_id, data in stats["last_messages"].items()
             )
         else:
-            text += "None"
+            text += "Нет"
         
         await callback.message.edit_text(
             text,
@@ -788,17 +743,17 @@ class ForwarderBot(CacheObserver):
         
         if not chats:
             text = (
-                "No target chats configured.\n"
-                "Make sure to:\n"
-                "1. Add bot to target chats\n"
-                "2. Make bot admin in source channels"
+                "Нет настроенных целевых чатов.\n"
+                "Убедитесь, что:\n"
+                "1. Бот добавлен в целевые чаты\n"
+                "2. Бот является администратором в исходных каналах"
             )
             markup = KeyboardFactory.create_main_keyboard(
                 isinstance(self.context.state, RunningState),
                 isinstance(self.context.state, RunningState) and self.context.state.auto_forward
             )
         else:
-            text = "📡 Target Chats:\n\n"
+            text = "📡 Целевые чаты:\n\n"
             for chat_id, title in chat_info.items():
                 text += f"• {title} ({chat_id})\n"
             markup = KeyboardFactory.create_chat_list_keyboard(chat_info)
@@ -819,35 +774,32 @@ class ForwarderBot(CacheObserver):
             )
         )
         await callback.answer()
-    # Add to ForwarderBot class in bot.py
-    async def manage_single_channel(self, callback: types.CallbackQuery):
-        """Combined management for a single channel"""
-        if callback.from_user.id != self.config.owner_id:
-            return
+    # # Add to ForwarderBot class in bot.py
+    # async def manage_single_channel(self, callback: types.CallbackQuery):
+    #     """Combined management for a single channel"""
+    #     if callback.from_user.id != self.config.owner_id:
+    #         return
         
-        # Extract channel ID from callback data
-        channel_id = callback.data.replace("manage_channel_", "")
+    #     channel_id = callback.data.replace("manage_channel_", "")
         
-        try:
-            # Get channel info
-            chat = await self.bot.get_chat(channel_id)
-            channel_name = chat.title or channel_id
-        except:
-            channel_name = channel_id
+    #     try:
+    #         chat = await self.bot.get_chat(channel_id)
+    #         channel_name = chat.title or channel_id
+    #     except:
+    #         channel_name = channel_id
         
-        # Create keyboard with options
-        kb = InlineKeyboardBuilder()
-        kb.button(text="🔍 Find Latest Message", callback_data=f"findlast_{channel_id}")
-        kb.button(text="❌ Remove Channel", callback_data=f"remove_channel_{channel_id}")
-        kb.button(text="Back to Channels", callback_data="channels")
-        kb.adjust(1)
+    #     kb = InlineKeyboardBuilder()
+    #     kb.button(text="🔍 Найти последнее сообщение", callback_data=f"findlast_{channel_id}")
+    #     kb.button(text="❌ Удалить канал", callback_data=f"remove_channel_{channel_id}")
+    #     kb.button(text="Назад к каналам", callback_data="channels")
+    #     kb.adjust(1)
         
-        await callback.message.edit_text(
-            f"Managing channel: {channel_name}\n\n"
-            f"Select an action:",
-            reply_markup=kb.as_markup()
-        )
-        await callback.answer()
+    #     await callback.message.edit_text(
+    #         f"Управление каналом: {channel_name}\n\n"
+    #         f"Выберите действие:",
+    #         reply_markup=kb.as_markup()
+    #     )
+    #     await callback.answer()
     # Update manage_channels method in ForwarderBot class
     async def manage_channels(self, callback: types.CallbackQuery):
         """Channel management menu"""
@@ -861,11 +813,11 @@ class ForwarderBot(CacheObserver):
         
         if not source_channels:
             text = (
-                "No source channels configured.\n"
-                "Add a channel by clicking the button below."
+                "Нет настроенных исходных каналов.\n"
+                "Добавьте канал, нажав кнопку ниже."
             )
         else:
-            text = "📡 Source Channels:\n\n"
+            text = "📡 Исходные каналы:\n\n"
             for channel in source_channels:
                 # Try to get chat info for better display
                 try:
@@ -893,13 +845,13 @@ class ForwarderBot(CacheObserver):
         
         # Create a keyboard with cancel button
         kb = InlineKeyboardBuilder()
-        kb.button(text="Cancel", callback_data="channels")
+        kb.button(text="Отмена", callback_data="channels")
         
         await callback.message.edit_text(
-            "Please enter the channel ID or username to add:\n\n"
-            "• For public channels: Enter the username without @\n"
-            "• For private channels: Enter the channel ID (starts with -100...)\n\n"
-            "Simply send the channel ID or username as a message 💬",
+            "Введите ID канала или его username для добавления:\n\n"
+            "• Для публичных каналов: введите username без @\n"
+            "• Для приватных каналов: введите ID канала (начинается с -100...)\n\n"
+            "Просто отправьте ID канала или username сообщением 💬",
             reply_markup=kb.as_markup()
         )
         await callback.answer()
@@ -952,14 +904,19 @@ class ForwarderBot(CacheObserver):
         """Remove a source channel"""
         if callback.from_user.id != self.config.owner_id:
             return
-            
+        
+        # Extract channel ID from callback data
+        if not callback.data.startswith("remove_channel_"):
+            await callback.answer("Неверный формат данных")
+            return
+        
         channel = callback.data.replace("remove_channel_", "")
         
         if self.config.remove_source_channel(channel):
-            await callback.answer("Channel removed successfully")
+            await callback.answer("Канал успешно удален")
         else:
-            await callback.answer("Failed to remove channel")
-            
+            await callback.answer("Не удалось удалить канал")
+        
         await self.manage_channels(callback)
 
     async def handle_channel_post(self, message: types.Message | None):
@@ -971,27 +928,23 @@ class ForwarderBot(CacheObserver):
         username = message.chat.username
         source_channels = self.config.source_channels
             
-        # Check if this message is from a configured source channel
         is_source = False
         for channel in source_channels:
-            # Compare with either channel ID or username
             if channel == chat_id or (username and channel.lower() == username.lower()):
                 is_source = True
                 break
                 
         if not is_source:
-            logger.info(f"Message not from source channel: {chat_id}/{username}")
+            logger.info(f"Сообщение не из канала-источника: {chat_id}/{username}")
             return
         
-        # Save the last message ID for this channel
         await Repository.save_last_message(chat_id, message.message_id)
         
-        # Handle message if the bot is running
         if isinstance(self.context.state, RunningState):
             await self.context.handle_message(chat_id, message.message_id)
-            logger.info(f"Forwarding channel post {message.message_id} from {chat_id} to all target chats")
+            logger.info(f"Пересылка сообщения {message.message_id} из {chat_id} во все целевые чаты")
         else:
-            logger.info("Bot is not running, ignoring post")
+            logger.info("Бот не запущен, игнорирую сообщение")
 
     async def handle_chat_member(self, update: types.ChatMemberUpdated):
         """Handler for bot being added/removed from chats"""
@@ -1001,24 +954,23 @@ class ForwarderBot(CacheObserver):
         chat_id = update.chat.id
         is_member = update.new_chat_member.status in ['member', 'administrator']
         
-        # Only add groups and supergroups as targets, not channels
         if is_member and update.chat.type in ['group', 'supergroup']:
             await Repository.add_target_chat(chat_id)
-            self.cache_service.remove_from_cache(chat_id)  # Force cache refresh
-            await self._notify_owner(f"Bot added to {update.chat.type}: {update.chat.title} ({chat_id})")
-            logger.info(f"Bot added to {update.chat.type}: {update.chat.title} ({chat_id})")
+            self.cache_service.remove_from_cache(chat_id)
+            await self._notify_owner(f"Бот добавлен в {update.chat.type}: {update.chat.title} ({chat_id})")
+            logger.info(f"Бот добавлен в {update.chat.type}: {update.chat.title} ({chat_id})")
         elif not is_member:
             await Repository.remove_target_chat(chat_id)
             self.cache_service.remove_from_cache(chat_id)
-            await self._notify_owner(f"Bot removed from chat {chat_id}")
-            logger.info(f"Bot removed from chat {chat_id}")
+            await self._notify_owner(f"Бот удален из чата {chat_id}")
+            logger.info(f"Бот удален из чата {chat_id}")
 
     async def _notify_owner(self, message: str):
         """Send notification to bot owner"""
         try:
             await self.bot.send_message(self.config.owner_id, message)
         except Exception as e:
-            logger.error(f"Failed to notify owner: {e}")
+            logger.error(f"Не удалось уведомить владельца: {e}")
 
     async def start(self):
         """Start the bot"""
@@ -1028,7 +980,7 @@ class ForwarderBot(CacheObserver):
         if not await Repository.get_config("repost_interval"):
             await Repository.set_config("repost_interval", "3600")
         
-        logger.info("Bot started successfully!")
+        logger.info("Бот успешно запущен!")
         try:
             # Get the last update ID to avoid duplicates
             offset = 0
@@ -1037,7 +989,7 @@ class ForwarderBot(CacheObserver):
                 if updates:
                     offset = updates[-1].update_id + 1
             except Exception as e:
-                logger.warning(f"Failed to get initial updates: {e}")
+                logger.warning(f"Не удалось получить начальные обновления: {e}")
 
             await self.dp.start_polling(self.bot, offset=offset)
         finally:
@@ -1078,9 +1030,9 @@ async def main():
 
     # Update the main section at the bottom of bot.py
 if __name__ == "__main__":
-        try:
-            asyncio.run(main())
-        except KeyboardInterrupt:
-            logger.info("Bot stopped by user")
-        except Exception as e:
-            logger.error(f"Bot stopped due to error: {e}")
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Бот остановлен пользователем")
+    except Exception as e:
+        logger.error(f"Бот остановлен из-за ошибки: {e}")
