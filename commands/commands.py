@@ -8,8 +8,8 @@ from utils.bot_state import IdleState, RunningState
 from utils.config import Config
 
 class StartCommand(Command):
-    def __init__(self, owner_id: int, running: bool = False):
-        super().__init__(owner_id)
+    def __init__(self, running: bool = False):
+        super().__init__()
         self.running = running
 
     async def _handle(self, message: types.Message) -> None:
@@ -36,8 +36,8 @@ class HelpCommand(Command):
         await message.answer(help_text, parse_mode="HTML")
 
 class SetLastMessageCommand(Command):
-    def __init__(self, owner_id: int, bot):
-        super().__init__(owner_id)
+    def __init__(self, bot):
+        super().__init__()
         self.bot = bot
 
     async def _handle(self, message: types.Message) -> None:
@@ -53,7 +53,7 @@ class SetLastMessageCommand(Command):
             
             try:
                 test_msg = await self.bot.forward_message(
-                    chat_id=self.owner_id,
+                    chat_id=message.from_user.id,
                     from_chat_id=channel_id,
                     message_id=message_id
                 )
@@ -68,9 +68,6 @@ class SetLastMessageCommand(Command):
             await message.answer("❌ ID сообщения должен быть числом")
 
 class GetLastMessageCommand(Command):
-    def __init__(self, owner_id: int):
-        super().__init__(owner_id)
-
     async def _handle(self, message: types.Message) -> None:
         last_messages = await Repository.get_all_last_messages()
         
@@ -88,8 +85,8 @@ class GetLastMessageCommand(Command):
         await message.answer(response)
 
 class ForwardNowCommand(Command):
-    def __init__(self, owner_id: int, bot_context):
-        super().__init__(owner_id)
+    def __init__(self, bot_context):
+        super().__init__()
         self.context = bot_context
 
     async def _handle(self, message: types.Message) -> None:
@@ -107,8 +104,8 @@ class ForwardNowCommand(Command):
         await progress_msg.edit_text("✅ Сообщение успешно переслано.")
 
 class TestMessageCommand(Command):
-    def __init__(self, owner_id: int, bot):
-        super().__init__(owner_id)
+    def __init__(self, bot):
+        super().__init__()
         self.bot = bot
 
     async def _handle(self, message: types.Message) -> None:
@@ -126,7 +123,7 @@ class TestMessageCommand(Command):
             
             try:
                 test_msg = await self.bot.forward_message(
-                    chat_id=self.owner_id,
+                    chat_id=message.from_user.id,
                     from_chat_id=channel_id,
                     message_id=message_id
                 )
@@ -137,8 +134,8 @@ class TestMessageCommand(Command):
             await message.answer("❌ ID сообщения должен быть числом")
 
 class FindLastMessageCommand(Command):
-    def __init__(self, owner_id: int, bot):
-        super().__init__(owner_id)
+    def __init__(self, bot):
+        super().__init__()
         self.bot = bot
 
     async def _handle(self, message: types.Message) -> None:
@@ -179,7 +176,7 @@ class FindLastMessageCommand(Command):
 
             try:
                 msg = await self.bot.forward_message(
-                    chat_id=self.owner_id,
+                    chat_id=message.from_user.id,
                     from_chat_id=channel_id,
                     message_id=msg_id
                 )

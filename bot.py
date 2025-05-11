@@ -41,10 +41,14 @@ class ForwarderBot(CacheObserver):
         self.cache_service.add_observer(self)
         
         self._setup_handlers()
-    # Update in bot.py - ForwarderBot.add_channel_command method
+        
+    def is_admin(self, user_id: int) -> bool:
+        """Check if user is an admin"""
+        return self.config.is_admin(user_id)
+        
     async def add_channel_command(self, message: types.Message):
         """Command to add a channel directly"""
-        if message.from_user.id != self.config.owner_id:
+        if not self.is_admin(message.from_user.id):
             return
         
         args = message.text.split(maxsplit=1)
@@ -138,30 +142,23 @@ class ForwarderBot(CacheObserver):
 
     def _setup_handlers(self):
         """Initialize message handlers with Command pattern"""
-        # Owner-only command handlers
+        # Admin command handlers
         commands = {
             "start": StartCommand(
-                self.config.owner_id,
                 isinstance(self.context.state, RunningState)
             ),
-            "help": HelpCommand(self.config.owner_id),
+            "help": HelpCommand(),
             "setlast": SetLastMessageCommand(
-                self.config.owner_id,
                 self.bot
             ),
-            "getlast": GetLastMessageCommand(
-                self.config.owner_id
-            ),
+            "getlast": GetLastMessageCommand(),
             "forwardnow": ForwardNowCommand(
-                self.config.owner_id,
                 self.context
             ),
             "test": TestMessageCommand(
-                self.config.owner_id,
                 self.bot
             ),
             "findlast": FindLastMessageCommand(
-                self.config.owner_id,
                 self.bot
             )
         }
@@ -180,7 +177,6 @@ class ForwarderBot(CacheObserver):
         self.dp.channel_post.register(self.handle_channel_post)
         
         # Callback query handlers
-        # Update in _setup_handlers in bot.py
         callbacks = {
             "toggle_forward": self.toggle_forwarding,
             "toggle_auto_forward": self.toggle_auto_forward,
@@ -208,9 +204,6 @@ class ForwarderBot(CacheObserver):
         # Handler for bot being added to chats
         self.dp.my_chat_member.register(self.handle_chat_member)
 
-
-        # Add these methods to ForwarderBot class in bot.py
-    # Make sure this method is in the ForwarderBot class
     async def find_latest_message(self, channel_id: str) -> Optional[int]:
         """Helper method to find the latest valid message ID in a channel"""
         try:
@@ -239,10 +232,10 @@ class ForwarderBot(CacheObserver):
         except Exception as e:
             logger.error(f"Error finding latest message in channel {channel_id}: {e}")
             return None
-    # Add this method to ForwarderBot class in bot.py
+            
     async def find_last_message_handler(self, callback: types.CallbackQuery):
         """Handler for finding last message button"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         channel_id = callback.data.replace("findlast_", "")
@@ -286,7 +279,7 @@ class ForwarderBot(CacheObserver):
         
     async def add_channel_prompt(self, callback: types.CallbackQuery):
         """Improved prompt to add a channel"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         # Create a keyboard with buttons for common channel types
@@ -306,7 +299,7 @@ class ForwarderBot(CacheObserver):
 
     async def add_channel_input(self, callback: types.CallbackQuery):
         """Handler for channel ID/username input"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         self.awaiting_channel_input = callback.from_user.id
@@ -323,10 +316,9 @@ class ForwarderBot(CacheObserver):
         )
         await callback.answer()
 
-    # Fix add_channel_submit method in ForwarderBot class in bot.py
     async def add_channel_submit(self, message: types.Message):
         """Handler for direct channel input message"""
-        if message.from_user.id != self.config.owner_id:
+        if not self.is_admin(message.from_user.id):
             return
         
         channel = message.text.strip()
@@ -415,11 +407,9 @@ class ForwarderBot(CacheObserver):
             )
             logger.error(f"Failed to add channel {channel}: {e}")
 
-
-    # In bot.py - Check if this method exists and is at the correct indentation level
     async def toggle_auto_forward(self, callback: types.CallbackQuery):
         """Handler for auto-forward toggle button"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
 
         if isinstance(self.context.state, RunningState):
@@ -435,10 +425,10 @@ class ForwarderBot(CacheObserver):
             await callback.answer("Start forwarding first to enable auto-forward")
         
         await callback.answer()
-    # Add to the ForwarderBot class in bot.py
+    
     async def toggle_forwarding(self, callback: types.CallbackQuery):
         """Handler for forwarding toggle button"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
 
         if isinstance(self.context.state, IdleState):
@@ -455,7 +445,6 @@ class ForwarderBot(CacheObserver):
         )
         await callback.answer()
 
-    # Add these methods to ForwarderBot
     async def manage_channel_intervals(self, callback: types.CallbackQuery):
         """Manager for channel intervals"""
         if callback.from_user.id != self.config.owner_id:
@@ -473,6 +462,9 @@ class ForwarderBot(CacheObserver):
             await callback.answer()
             return
         
+        # Get current intervals from database
+        current_intervals = await Repository.get_channel_intervals()
+        
         kb = InlineKeyboardBuilder()
         for i, channel in enumerate(source_channels):
             if i < len(source_channels) - 1:
@@ -486,8 +478,21 @@ class ForwarderBot(CacheObserver):
                     name1 = channel[:8]
                     name2 = next_channel[:8]
                 
+                # Check if interval is set for this channel pair
+                interval_data = current_intervals.get(channel, {})
+                if interval_data.get("next_channel") == next_channel:
+                    interval_seconds = interval_data.get("interval", 300)  # Default to 5m
+                    # Format interval for display
+                    if interval_seconds >= 3600:
+                        interval_str = f"{interval_seconds//3600}ч"
+                    else:
+                        interval_str = f"{interval_seconds//60}м"
+                    button_text = f"⏱️ {name1} → {name2} ({interval_str})"
+                else:
+                    button_text = f"⏱️ {name1} → {name2} (не установлен)"
+                
                 kb.button(
-                    text=f"⏱️ {name1} → {name2}",
+                    text=button_text,
                     callback_data=f"interval_between_{channel}_{next_channel}"
                 )
         
@@ -502,7 +507,7 @@ class ForwarderBot(CacheObserver):
 
     async def set_channel_interval_prompt(self, callback: types.CallbackQuery):
         """Prompt for setting interval between channels"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
             
         # Parse the channel IDs from callback data
@@ -532,7 +537,7 @@ class ForwarderBot(CacheObserver):
 
     async def set_channel_interval(self, callback: types.CallbackQuery):
         """Set interval between two channels"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
             
         # Parse data: set_interval_channel1_channel2_seconds
@@ -569,10 +574,9 @@ class ForwarderBot(CacheObserver):
         else:
             await callback.answer("Invalid interval selection")
 
-
     async def set_interval(self, callback: types.CallbackQuery):
         """Handler for interval setting"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
 
         data = callback.data
@@ -674,11 +678,10 @@ class ForwarderBot(CacheObserver):
             except Exception as e:
                 logger.error(f"Ошибка установки интервала: {e}")
                 await callback.answer("Ошибка установки интервала")
-    
 
     async def remove_chat(self, callback: types.CallbackQuery):
         """Handler for chat removal"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         # Check if this is for removing a chat, not a channel
@@ -698,7 +701,7 @@ class ForwarderBot(CacheObserver):
 
     async def show_stats(self, callback: types.CallbackQuery):
         """Handler for statistics display"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         stats = await Repository.get_stats()
@@ -730,7 +733,7 @@ class ForwarderBot(CacheObserver):
 
     async def list_chats(self, callback: types.CallbackQuery):
         """Handler for chat listing"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         chats = await Repository.get_target_chats()
@@ -763,7 +766,7 @@ class ForwarderBot(CacheObserver):
 
     async def main_menu(self, callback: types.CallbackQuery):
         """Handler for main menu button"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         await callback.message.edit_text(
@@ -774,36 +777,10 @@ class ForwarderBot(CacheObserver):
             )
         )
         await callback.answer()
-    # # Add to ForwarderBot class in bot.py
-    # async def manage_single_channel(self, callback: types.CallbackQuery):
-    #     """Combined management for a single channel"""
-    #     if callback.from_user.id != self.config.owner_id:
-    #         return
-        
-    #     channel_id = callback.data.replace("manage_channel_", "")
-        
-    #     try:
-    #         chat = await self.bot.get_chat(channel_id)
-    #         channel_name = chat.title or channel_id
-    #     except:
-    #         channel_name = channel_id
-        
-    #     kb = InlineKeyboardBuilder()
-    #     kb.button(text="🔍 Найти последнее сообщение", callback_data=f"findlast_{channel_id}")
-    #     kb.button(text="❌ Удалить канал", callback_data=f"remove_channel_{channel_id}")
-    #     kb.button(text="Назад к каналам", callback_data="channels")
-    #     kb.adjust(1)
-        
-    #     await callback.message.edit_text(
-    #         f"Управление каналом: {channel_name}\n\n"
-    #         f"Выберите действие:",
-    #         reply_markup=kb.as_markup()
-    #     )
-    #     await callback.answer()
-    # Update manage_channels method in ForwarderBot class
+
     async def manage_channels(self, callback: types.CallbackQuery):
         """Channel management menu"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
                 
         # Reset any channel input state
@@ -837,7 +814,7 @@ class ForwarderBot(CacheObserver):
 
     async def add_channel_prompt(self, callback: types.CallbackQuery):
         """Improved prompt to add a channel without command"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         # Set state to wait for channel input
@@ -902,7 +879,7 @@ class ForwarderBot(CacheObserver):
 
     async def remove_channel(self, callback: types.CallbackQuery):
         """Remove a source channel"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         # Extract channel ID from callback data
@@ -957,20 +934,28 @@ class ForwarderBot(CacheObserver):
         if is_member and update.chat.type in ['group', 'supergroup']:
             await Repository.add_target_chat(chat_id)
             self.cache_service.remove_from_cache(chat_id)
-            await self._notify_owner(f"Бот добавлен в {update.chat.type}: {update.chat.title} ({chat_id})")
+            await self._notify_admins(f"Бот добавлен в {update.chat.type}: {update.chat.title} ({chat_id})")
             logger.info(f"Бот добавлен в {update.chat.type}: {update.chat.title} ({chat_id})")
         elif not is_member:
             await Repository.remove_target_chat(chat_id)
             self.cache_service.remove_from_cache(chat_id)
-            await self._notify_owner(f"Бот удален из чата {chat_id}")
+            await self._notify_admins(f"Бот удален из чата {chat_id}")
             logger.info(f"Бот удален из чата {chat_id}")
 
     async def _notify_owner(self, message: str):
-        """Send notification to bot owner"""
+        """Send notification to bot owner (first admin for compatibility)"""
         try:
             await self.bot.send_message(self.config.owner_id, message)
         except Exception as e:
             logger.error(f"Не удалось уведомить владельца: {e}")
+            
+    async def _notify_admins(self, message: str):
+        """Send notification to all bot admins"""
+        for admin_id in self.config.admin_ids:
+            try:
+                await self.bot.send_message(admin_id, message)
+            except Exception as e:
+                logger.error(f"Не удалось уведомить администратора {admin_id}: {e}")
 
     async def start(self):
         """Start the bot"""

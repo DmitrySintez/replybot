@@ -23,7 +23,23 @@ class Config:
         
         # Load environment variables
         self.bot_token: str = os.getenv("BOT_TOKEN", "")
-        self.owner_id: int = int(os.getenv("OWNER_ID", "0"))
+        
+        # Load admin IDs from comma-separated list
+        admin_ids_str = os.getenv("ADMIN_IDS", os.getenv("OWNER_ID", ""))
+        self.admin_ids: List[int] = []
+        
+        if admin_ids_str:
+            try:
+                # Split by comma and convert to integers
+                self.admin_ids = [int(id.strip()) for id in admin_ids_str.split(',') if id.strip()]
+            except ValueError as e:
+                logger.error(f"Error parsing admin IDs: {e}")
+                # Fallback to empty list if parsing fails
+                self.admin_ids = []
+        
+        # For backwards compatibility - still store the first admin as owner_id
+        self.owner_id: int = self.admin_ids[0] if self.admin_ids else 0
+        
         self.source_channels: List[str] = []
         
         # Support for backwards compatibility - add initial source channel if provided
@@ -37,7 +53,7 @@ class Config:
         self._load_channels_from_config()
         
         # Validate required settings
-        if not all([self.bot_token, self.owner_id]):
+        if not all([self.bot_token, self.admin_ids]):
             raise ValueError("Missing required environment variables")
         
         # Cache settings
@@ -48,6 +64,10 @@ class Config:
         self.max_db_connections: int = 5
         
         self._initialized = True
+    
+    def is_admin(self, user_id: int) -> bool:
+        """Check if user is an admin"""
+        return user_id in self.admin_ids
     
     def _load_channels_from_config(self):
         """Load channels from configuration file"""
@@ -116,6 +136,7 @@ class Config:
             self._save_channels_to_config()
             return True
         return False
+        
     def remove_source_channel(self, channel: str) -> bool:
         """Remove a source channel and update config"""
         channel = channel.lstrip('@')

@@ -1,15 +1,16 @@
 from abc import ABC, abstractmethod
 from aiogram import types
+from utils.config import Config
 
 class Command(ABC):
     """Base command class implementing Command Pattern"""
     
-    def __init__(self, owner_id: int):
-        self.owner_id = owner_id
+    def __init__(self):
+        self.config = Config()
     
     async def execute(self, message: types.Message) -> None:
         """Execute the command if user has permission"""
-        if message.from_user.id != self.owner_id:
+        if not self.config.is_admin(message.from_user.id):
             return
         await self._handle(message)
     

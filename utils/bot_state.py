@@ -31,11 +31,10 @@ class IdleState(BotState):
         self.context = bot_context
         self.auto_forward = auto_forward
     
-    # In IdleState.start method (utils/bot_state.py)
     async def start(self) -> None:
         interval = int(await Repository.get_config("repost_interval", "3600"))
         self.context.state = RunningState(self.context, interval, self.auto_forward)
-        await self.context._notify_owner("Бот начал пересылку")
+        await self.context._notify_admins("Бот начал пересылку")
     
     async def stop(self) -> None:
         # Already stopped
@@ -45,13 +44,9 @@ class IdleState(BotState):
         # Don't forward messages in idle state
         logger.info("Bot is idle, not forwarding messages")
 
-# utils/bot_state.py - Updated RunningState class
-
 class RunningState(BotState):
     """State when bot is actively forwarding messages"""
     
-    # In RunningState class (utils/bot_state.py)
-    # In RunningState class - update __init__ method in utils/bot_state.py
     def __init__(self, bot_context, interval: int, auto_forward: bool = False):
         self.context = bot_context
         self.interval = interval  # Global repost interval
@@ -79,9 +74,6 @@ class RunningState(BotState):
         if not self._repost_task or self._repost_task.done():
             self._repost_task = asyncio.create_task(self._fallback_repost())
 
-    # Add this method to the ForwarderBot class in bot.py
-    # Remove this from RunningState class in bot_state.py
-    # In utils/bot_state.py - Add this to RunningState class
     async def toggle_auto_forward(self):
         """Toggle automatic message forwarding"""
         self.auto_forward = not self.auto_forward
@@ -96,7 +88,7 @@ class RunningState(BotState):
             self._repost_task.cancel()
         self.auto_forward = False
         self.context.state = IdleState(self.context, self.auto_forward)
-        await self.context._notify_owner("Бот остановил пересылку")
+        await self.context._notify_admins("Бот остановил пересылку")
     
     async def handle_message(self, channel_id: str, message_id: int) -> None:
         if self.auto_forward:
@@ -131,7 +123,7 @@ class RunningState(BotState):
                 oldest_time = last_post_time
                 
         return oldest_channel
-    # Add this helper method to RunningState
+        
     async def _get_channel_pair_interval(self, channel1: str, channel2: str) -> Optional[int]:
         """Get the interval between two channels (if set)"""
         try:
@@ -233,6 +225,7 @@ class RunningState(BotState):
             except Exception as e:
                 logger.error(f"Ошибка в периодической рассылке: {e}")
                 await asyncio.sleep(60)
+                
 class BotContext:
     """Context class that maintains current bot state"""
     
@@ -249,6 +242,7 @@ class BotContext:
     
     async def handle_message(self, channel_id: str, message_id: int) -> None:
         await self.state.handle_message(channel_id, message_id)
+    
     
     async def _forward_message(self, channel_id: str, message_id: int) -> bool:
         """Forward a message to all target chats (groups/supergroups, not channels)"""
@@ -284,8 +278,16 @@ class BotContext:
         return success
     
     async def _notify_owner(self, message: str):
-        """Send notification to bot owner"""
+        """Send notification to bot owner (for compatibility)"""
         try:
             await self.bot.send_message(self.config.owner_id, message)
         except Exception as e:
             logger.error(f"Не удалось уведомить владельца: {e}")
+            
+    async def _notify_admins(self, message: str):
+        """Send notification to all bot admins"""
+        for admin_id in self.config.admin_ids:
+            try:
+                await self.bot.send_message(admin_id, message)
+            except Exception as e:
+                logger.error(f"Не удалось уведомить администратора {admin_id}: {e}")
