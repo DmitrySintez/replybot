@@ -1,20 +1,25 @@
-from datetime import datetime
-import os
+
 import asyncio
 import json
+import os
+import shutil
+import sys
+from datetime import datetime
+import threading
+import importlib.util
+from typing import Optional, List, Dict, Any
+from multiprocessing import Process
+import multiprocessing
+
 from loguru import logger
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from typing import Optional, List, Dict, Any
-
 
 from utils.config import Config
 from utils.bot_state import BotContext, IdleState, RunningState
 from utils.keyboard_factory import KeyboardFactory
-
 from database.repository import Repository
-
 from services.chat_cache import ChatCacheService, CacheObserver, ChatInfo
 from commands.commands import (
     StartCommand,
@@ -25,6 +30,107 @@ from commands.commands import (
     TestMessageCommand,
     FindLastMessageCommand
 )
+class BotManager:
+    """Manages multiple bot instances"""
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(BotManager, cls).__new__(cls)
+            # Create a manager instance properly
+            import multiprocessing
+            cls._instance.manager = multiprocessing.Manager()
+            cls._instance.bots = cls._instance.manager.dict()
+            cls._instance.processes = {}
+            
+            from loguru import logger
+            logger.info("BotManager singleton created")
+        return cls._instance
+    
+    def add_bot(self, bot_id: str, process: Process):
+        """Add a bot process to the manager"""
+        self.bots[bot_id] = {
+            'status': 'running',
+            'pid': process.pid,
+            'started_at': datetime.now().isoformat()
+        }
+        self.processes[bot_id] = process
+        
+        from loguru import logger
+        logger.info(f"Added bot {bot_id} to manager. Total bots: {len(self.bots)}")
+        logger.debug(f"Current bots: {list(self.bots.keys())}")
+    
+    def remove_bot(self, bot_id: str):
+        """Remove a bot from the manager"""
+        if bot_id in self.processes:
+            process = self.processes[bot_id]
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
+            del self.processes[bot_id]
+            del self.bots[bot_id]
+    
+    def get_bot_status(self, bot_id: str):
+        """Get status of a specific bot"""
+        return self.bots.get(bot_id, None)
+    
+    def list_bots(self):
+        """List all managed bots"""
+        from loguru import logger
+        logger.debug(f"Listing bots. Total: {len(self.bots)}, Keys: {list(self.bots.keys())}")
+        return dict(self.bots)
+
+
+
+# Add this function to run a bot in a separate process
+def run_bot_process(bot_token: str, owner_id: int, source_channels: list, bot_id: str):
+    """Wrapper to run bot in a separate process"""
+    # Set up logging for the subprocess
+    from loguru import logger
+    logger.add(f"bot_{bot_id}.log", rotation="10 MB")
+    
+    # Create new event loop for this process
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        loop.run_until_complete(run_bot_instance(bot_token, owner_id, source_channels, bot_id))
+    except Exception as e:
+        logger.error(f"Error in bot process {bot_id}: {e}")
+    finally:
+        loop.close()
+
+
+# Add this function to run a bot in a separate process
+async def run_bot_instance(bot_token: str, owner_id: int, source_channels: list, bot_id: str):
+    """Run a bot instance with specific configuration"""
+    import os
+    import sys
+    
+    # Create a temporary config for this bot instance
+    os.environ['BOT_TOKEN'] = bot_token
+    os.environ['OWNER_ID'] = str(owner_id)
+    
+    # Create a custom config class for this instance
+    from utils.config import Config
+    
+    # Override the singleton pattern for this process
+    Config._instance = None
+    config = Config()
+    config.bot_token = bot_token
+    config.owner_id = owner_id
+    config.source_channels = source_channels
+    
+    # Create a new bot instance
+    bot_instance = ForwarderBot()
+    bot_instance.bot_id = bot_id  # Add identifier
+    
+    try:
+        await bot_instance.start()
+    except Exception as e:
+        logger.error(f"Bot {bot_id} crashed: {e}")
+        raise
+
 
 class ForwarderBot(CacheObserver):
     """Main bot class with Observer pattern implementation"""
@@ -36,7 +142,10 @@ class ForwarderBot(CacheObserver):
         self.context = BotContext(self.bot, self.config)
         self.cache_service = ChatCacheService()
         self.awaiting_channel_input = None  # Track if waiting for channel input
-        
+        self.bot_manager = BotManager()
+        self.bot_id = "main"  # Identifier for the main bot
+        self.child_bots = []  # Track spawned bots
+
         # Register as cache observer
         self.cache_service.add_observer(self)
         
@@ -45,101 +154,502 @@ class ForwarderBot(CacheObserver):
     def is_admin(self, user_id: int) -> bool:
         """Check if user is an admin"""
         return self.config.is_admin(user_id)
-        
-    async def add_channel_command(self, message: types.Message):
-        """Command to add a channel directly"""
-        if not self.is_admin(message.from_user.id):
+    async def clone_bot_prompt(self, callback: types.CallbackQuery):
+        """Prompt for cloning the bot"""
+        if callback.from_user.id != self.config.owner_id:
             return
         
-        args = message.text.split(maxsplit=1)
-        if len(args) != 2:
-            await message.reply(
-                "Использование: /addchannel <channel_id_или_username>\n\n"
-                "Примеры:\n"
-                "• /addchannel -100123456789\n"
-                "• /addchannel mychannel"
-            )
+        # Set state to wait for new token
+        self.awaiting_clone_token = callback.from_user.id
+        
+        kb = InlineKeyboardBuilder()
+        kb.button(text="Отмена", callback_data="back_to_main")
+        
+        await callback.message.edit_text(
+            "🤖 Клонирование бота\n\n"
+            "1. Создайте нового бота через @BotFather\n"
+            "2. Получите новый токен бота\n"
+            "3. Отправьте токен сюда\n\n"
+            "После проверки токена вы сможете выбрать:\n"
+            "• Запустить клон в текущем процессе\n"
+            "• Создать файлы для отдельного запуска\n\n"
+            "Отправьте новый токен сообщением 💬",
+            reply_markup=kb.as_markup()
+        )
+        await callback.answer()
+
+    # Let's also add the overwrite_clone method that was referenced earlier
+    async def overwrite_clone(self, callback: types.CallbackQuery):
+        """Handler for overwriting existing clone"""
+        if callback.from_user.id != self.config.owner_id:
             return
         
-        channel = args[1].strip()
-        
-        if not channel:
-            await message.reply("⚠️ ID/username канала не может быть пустым")
+        # Parse data: overwrite_clone_dirname_token
+        parts = callback.data.split('_', 3)
+        if len(parts) != 4:
+            await callback.answer("Ошибка в данных")
             return
+        
+        clone_dir = parts[2]
+        new_token = parts[3]
+        
+        # Delete existing clone
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        clone_path = os.path.join(os.path.dirname(current_dir), clone_dir)
+        
+        if os.path.exists(clone_path):
+            shutil.rmtree(clone_path)
+        
+        # Perform clone
+        await self._perform_bot_clone(new_token, clone_dir, callback.message)
+        await callback.answer()
+    async def _perform_bot_clone(self, new_token: str, clone_dir: str, progress_msg=None):
+        """Perform the actual bot cloning"""
+        try:
+            # Get bot info for the new token
+            test_bot = Bot(token=new_token)
+            bot_info = await test_bot.get_me()
+            await test_bot.session.close()
+            
+            # Get paths
+            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            clone_path = os.path.join(os.path.dirname(current_dir), clone_dir)
+            
+            # Create clone directory
+            os.makedirs(clone_path, exist_ok=True)
+            
+            # Files and directories to copy
+            items_to_copy = [
+                'bot.py',
+                'requirements.txt',
+                'Dockerfile',
+                'utils',
+                'commands',
+                'services',
+                'database'
+            ]
+            
+            # Copy files and directories
+            for item in items_to_copy:
+                src = os.path.join(current_dir, item)
+                dst = os.path.join(clone_path, item)
+                
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                elif os.path.isfile(src):
+                    shutil.copy2(src, dst)
+            
+            # Create new .env file with new token
+            env_content = f"""# Telegram Bot Token from @BotFather
+BOT_TOKEN={new_token}
+
+# Your Telegram user ID (get from @userinfobot)
+OWNER_ID={self.config.owner_id}
+
+# Source channel username or ID (bot must be admin)
+# Can be either numeric ID (-100...) or channel username without @
+SOURCE_CHANNEL={self.config.source_channels[0] if self.config.source_channels else ''}
+"""
+            
+            with open(os.path.join(clone_path, '.env'), 'w') as f:
+                f.write(env_content)
+            
+            # Copy bot_config.json with same channels
+            if os.path.exists(os.path.join(current_dir, 'bot_config.json')):
+                shutil.copy2(
+                    os.path.join(current_dir, 'bot_config.json'),
+                    os.path.join(clone_path, 'bot_config.json')
+                )
+            
+            # Create a start script for Linux
+            start_script = f"""#!/bin/bash
+cd "{clone_path}"
+python bot.py
+"""
+            
+            start_script_path = os.path.join(clone_path, 'start_bot.sh')
+            with open(start_script_path, 'w') as f:
+                f.write(start_script)
+            
+            # Make the script executable
+            os.chmod(start_script_path, 0o755)
+            
+            # Create Windows start script
+            start_script_windows = f"""@echo off
+cd /d "{clone_path}"
+python bot.py
+pause
+"""
+            
+            with open(os.path.join(clone_path, 'start_bot.bat'), 'w') as f:
+                f.write(start_script_windows)
+            
+            # Create README.md for the clone
+            readme_content = f"""# Bot Clone: @{bot_info.username}
+
+This is a clone of the main forwarding bot.
+
+## Configuration
+- Bot Token: Configured in .env
+- Owner ID: {self.config.owner_id}
+- Source Channels: {', '.join(self.config.source_channels)}
+
+## Running the bot
+
+### Linux/Mac:
+```bash
+./start_bot.sh
+```
+
+### Windows:
+```bash
+start_bot.bat
+```
+
+### Manual:
+```bash
+python bot.py
+```
+
+## Important Notes
+- Make sure the bot is admin in all source channels
+- The bot will forward messages to the same target chats as the main bot
+- Database is separate from the main bot
+"""
+            
+            with open(os.path.join(clone_path, 'README.md'), 'w') as f:
+                f.write(readme_content)
+            
+            if progress_msg:
+                kb = InlineKeyboardBuilder()
+                kb.button(text="Назад", callback_data="back_to_main")
+                
+                success_text = (
+                    f"✅ Бот успешно клонирован!\n\n"
+                    f"📁 Папка: {clone_dir}\n"
+                    f"🤖 Имя бота: @{bot_info.username}\n\n"
+                    f"Для запуска клона:\n"
+                    f"1. Перейдите в папку: {clone_path}\n"
+                    f"2. Запустите: `python bot.py` или используйте скрипт start_bot.sh (Linux) / start_bot.bat (Windows)\n\n"
+                    f"Клон будет работать независимо с теми же настройками каналов."
+                )
+                
+                await progress_msg.edit_text(success_text, reply_markup=kb.as_markup())
+            
+            logger.info(f"Successfully cloned bot to {clone_dir}")
+            
+        except Exception as e:
+            logger.error(f"Error during bot clone: {e}")
+            if progress_msg:
+                kb = InlineKeyboardBuilder()
+                kb.button(text="Назад", callback_data="back_to_main")
+                
+                await progress_msg.edit_text(
+                    f"❌ Ошибка при клонировании: {e}",
+                    reply_markup=kb.as_markup()
+                )
+            raise
+
+
+    async def create_clone_files(self, callback: types.CallbackQuery):
+        """Create clone files for separate deployment"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+        
+        # Parse data: clone_files_token
+        parts = callback.data.split('_', 2)
+        if len(parts) != 3:
+            await callback.answer("Ошибка в данных")
+            return
+        
+        new_token = parts[2]
+        
+        progress_msg = await callback.message.edit_text("🔄 Создание файлов клона...")
         
         try:
-            # Try to get basic info about the channel
-            chat = await self.bot.get_chat(channel)
+            # Verify the new token
+            test_bot = Bot(token=new_token)
+            bot_info = await test_bot.get_me()
+            await test_bot.session.close()
             
-            # Check if bot is an admin in the channel
-            bot_id = (await self.bot.get_me()).id
-            member = await self.bot.get_chat_member(chat.id, bot_id)
+            # Create clone directory name
+            clone_dir = f"bot_clone_{bot_info.username}"
             
-            if member.status != "administrator":
-                await message.reply(
-                    "⚠️ Бот должен быть администратором канала для пересылки сообщений.\n"
-                    "Пожалуйста, добавьте бота как администратора и попробуйте снова."
+            # Check if clone already exists
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            clone_path = os.path.join(os.path.dirname(current_dir), clone_dir)
+            
+            if os.path.exists(clone_path):
+                kb = InlineKeyboardBuilder()
+                kb.button(text="Да, перезаписать", callback_data=f"overwrite_clone_{clone_dir}_{new_token}")
+                kb.button(text="Отмена", callback_data="back_to_main")
+                kb.adjust(2)
+                
+                await progress_msg.edit_text(
+                    f"⚠️ Клон бота уже существует в папке: {clone_dir}\n\n"
+                    "Перезаписать существующий клон?",
+                    reply_markup=kb.as_markup()
                 )
                 return
             
-            # Add channel to configuration
-            if self.config.add_source_channel(str(chat.id)):
-                await message.reply(
-                    f"✅ Канал успешно добавлен: {chat.title} ({chat.id})"
-                )
-                logger.info(f"Added channel: {chat.title} ({chat.id})")
-                
-                # Now find and save the latest message ID
-                progress_msg = await message.reply(f"🔍 Ищу последнее сообщение в канале {chat.id}...")
-                
-                # Try to find the last message ID
-                try:
-                    # Start with a reasonably high message ID and try to access messages backwards
-                    latest_id = None
-                    start_id = 10000  # Start with a reasonable high number
-                    
-                    # Try to access more recent messages first
-                    for test_id in range(start_id, 0, -1):
-                        try:
-                            # Just try to get message info, no need to forward
-                            msg = await self.bot.get_messages(chat.id, test_id)
-                            if msg and not msg.empty:
-                                latest_id = test_id
-                                break
-                        except Exception:
-                            # Skip errors for non-existent messages
-                            pass
-                        
-                        # Add some progress updates
-                        if test_id % 1000 == 0:
-                            try:
-                                await progress_msg.edit_text(f"🔍 Ищу сообщения... (проверено до ID {test_id})")
-                            except:
-                                pass
-                    
-                    if latest_id:
-                        # Found a valid message, save it
-                        await Repository.save_last_message(str(chat.id), latest_id)
-                        await progress_msg.edit_text(f"✅ Найдено и сохранено последнее сообщение (ID: {latest_id}) в канале {chat.title}")
-                    else:
-                        await progress_msg.edit_text(f"⚠️ Не удалось найти сообщения в канале {chat.title}. Используйте /findlast {chat.id} вручную.")
-                except Exception as e:
-                    logger.error(f"Error finding latest message in channel {chat.id}: {e}")
-                    await progress_msg.edit_text(f"⚠️ Ошибка при поиске последнего сообщения: {e}. Используйте /findlast {chat.id} вручную.")
-                    
-            else:
-                await message.reply("⚠️ Этот канал уже настроен")
-        
+            # Create clone files
+            await self._perform_bot_clone(new_token, clone_dir, progress_msg)
+            
         except Exception as e:
-            await message.reply(
-                f"❌ Ошибка доступа к каналу: {e}\n\n"
-                "Убедитесь что:\n"
-                "• ID/username канала указан правильно\n"
-                "• Бот является участником канала\n"
-                "• Бот является администратором канала"
+            kb = InlineKeyboardBuilder()
+            kb.button(text="Назад", callback_data="back_to_main")
+            
+            await progress_msg.edit_text(
+                f"❌ Ошибка при создании файлов клона: {e}",
+                reply_markup=kb.as_markup()
             )
-            logger.error(f"Failed to add channel {channel}: {e}")
+            logger.error(f"Failed to create clone files: {e}")
+        
+        await callback.answer()
+    async def clone_bot_inline(self, callback: types.CallbackQuery):
+        """Run cloned bot in the same solution"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+        
+        # Parse data: clone_inline_token
+        parts = callback.data.split('_', 2)
+        if len(parts) != 3:
+            await callback.answer("Ошибка в данных")
+            return
+        
+        new_token = parts[2]
+        
+        await callback.message.edit_text("🚀 Запускаю клон бота...")
+        
+        try:
+            # Verify the token
+            test_bot = Bot(token=new_token)
+            bot_info = await test_bot.get_me()
+            await test_bot.session.close()
+            
+            bot_id = f"bot_{bot_info.username}"
+            
+            # Check if this bot is already running
+            if bot_id in self.bot_manager.processes:
+                if self.bot_manager.processes[bot_id].is_alive():
+                    kb = InlineKeyboardBuilder()
+                    kb.button(text="Остановить", callback_data=f"stop_clone_{bot_id}")
+                    kb.button(text="Назад", callback_data="manage_clones")
+                    kb.adjust(2)
+                    
+                    await callback.message.edit_text(
+                        f"⚠️ Бот @{bot_info.username} уже запущен!",
+                        reply_markup=kb.as_markup()
+                    )
+                    await callback.answer()
+                    return
+            
+            # Create a new process for the bot
+            process = Process(
+                target=run_bot_process,
+                args=(new_token, self.config.owner_id, self.config.source_channels, bot_id),
+                name=bot_id
+            )
+            
+            process.start()
+            self.bot_manager.add_bot(bot_id, process)
+            self.child_bots.append(bot_id)
+            
+            kb = InlineKeyboardBuilder()
+            kb.button(text="Управление клонами", callback_data="manage_clones")
+            kb.button(text="Назад", callback_data="back_to_main")
+            kb.adjust(2)
+            
+            await callback.message.edit_text(
+                f"✅ Бот @{bot_info.username} успешно запущен!\n\n"
+                f"ID процесса: {process.pid}\n"
+                f"Статус: Работает\n\n"
+                "Бот работает в отдельном процессе и будет пересылать сообщения.",
+                reply_markup=kb.as_markup()
+            )
+            
+        except Exception as e:
+            kb = InlineKeyboardBuilder()
+            kb.button(text="Назад", callback_data="back_to_main")
+            
+            await callback.message.edit_text(
+                f"❌ Ошибка при запуске клона: {e}",
+                reply_markup=kb.as_markup()
+            )
+            logger.error(f"Failed to start clone bot: {e}")
+        
+        await callback.answer()
 
+    async def manage_clones(self, callback: types.CallbackQuery):
+        """Manage running bot clones"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+        
+        bots = self.bot_manager.list_bots()
+        
+        # Count clones (excluding main bot)
+        clone_count = len([b for b in bots if b != "main"])
+        
+        if clone_count == 0:
+            kb = InlineKeyboardBuilder()
+            kb.button(text="Добавить клон", callback_data="clone_bot")
+            kb.button(text="Назад", callback_data="back_to_main")
+            kb.adjust(2)
+            
+            await callback.message.edit_text(
+                "📋 Нет запущенных клонов.\n\n"
+                "Добавьте новый клон для управления несколькими ботами.",
+                reply_markup=kb.as_markup()
+            )
+        else:
+            text = "🤖 Запущенные боты:\n\n"
+            kb = InlineKeyboardBuilder()
+            
+            # Show main bot info first
+            main_info = bots.get("main", {})
+            text += f"• Основной бот\n  Статус: 🟢 Работает\n  PID: {main_info.get('pid', 'N/A')}\n\n"
+            
+            # Show clones
+            for bot_id, info in bots.items():
+                if bot_id == "main":
+                    continue
+                    
+                # Check if process is alive
+                process = self.bot_manager.processes.get(bot_id)
+                if process and process.is_alive():
+                    status = "🟢 Работает"
+                else:
+                    status = "🔴 Остановлен"
+                
+                # Extract bot username from bot_id
+                bot_username = bot_id.replace("bot_", "@")
+                text += f"• {bot_username}\n  Статус: {status}\n  PID: {info.get('pid', 'N/A')}\n  Запущен: {info.get('started_at', 'Неизвестно')}\n\n"
+                
+                if status == "🟢 Работает":
+                    kb.button(text=f"Остановить {bot_username}", callback_data=f"stop_clone_{bot_id}")
+                else:
+                    kb.button(text=f"Запустить {bot_username}", callback_data=f"start_clone_{bot_id}")
+            
+            kb.button(text="Добавить клон", callback_data="clone_bot")
+            kb.button(text="Назад", callback_data="back_to_main")
+            kb.adjust(1)
+            
+            await callback.message.edit_text(text, reply_markup=kb.as_markup())
+        
+        await callback.answer()
+
+    async def stop_clone(self, callback: types.CallbackQuery):
+        """Stop a running bot clone"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+        
+        bot_id = callback.data.replace("stop_clone_", "")
+        
+        try:
+            self.bot_manager.remove_bot(bot_id)
+            await callback.answer(f"Бот {bot_id} остановлен")
+        except Exception as e:
+            await callback.answer(f"Ошибка при остановке: {e}")
+        
+        await self.manage_clones(callback)
+
+    # Update the clone_bot_submit method to provide inline option
+    async def clone_bot_submit(self, message: types.Message):
+        """Handler for new bot token submission"""
+        if message.from_user.id != self.config.owner_id:
+            return
+        
+        if not hasattr(self, 'awaiting_clone_token') or self.awaiting_clone_token != message.from_user.id:
+            return
+        
+        new_token = message.text.strip()
+        
+        if not new_token or ':' not in new_token:
+            await message.reply("⚠️ Неверный формат токена.")
+            return
+        
+        self.awaiting_clone_token = None
+        
+        # Verify the token
+        try:
+            test_bot = Bot(token=new_token)
+            bot_info = await test_bot.get_me()
+            await test_bot.session.close()
+            
+            kb = InlineKeyboardBuilder()
+            kb.button(text="🚀 Запустить сейчас", callback_data=f"clone_inline_{new_token}")
+            kb.button(text="💾 Создать файлы", callback_data=f"clone_files_{new_token}")
+            kb.button(text="Отмена", callback_data="back_to_main")
+            kb.adjust(2)
+            
+            await message.reply(
+                f"✅ Токен проверен!\n"
+                f"Бот: @{bot_info.username}\n\n"
+                "Выберите действие:",
+                reply_markup=kb.as_markup()
+            )
+            
+        except Exception as e:
+            await message.reply(f"❌ Ошибка проверки токена: {e}")
+
+    # Add cleanup method to stop all child bots on shutdown
+    async def cleanup(self):
+        """Stop all child bots"""
+        for bot_id in self.child_bots:
+            try:
+                self.bot_manager.remove_bot(bot_id)
+            except Exception as e:
+                logger.error(f"Error stopping bot {bot_id}: {e}")
+
+    async def clone_bot_prompt(self, callback: types.CallbackQuery):
+        """Prompt for cloning the bot"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+        
+        # Set state to wait for new token
+        self.awaiting_clone_token = callback.from_user.id
+        
+        kb = InlineKeyboardBuilder()
+        kb.button(text="Отмена", callback_data="back_to_main")
+        
+        await callback.message.edit_text(
+            "🤖 Клонирование бота\n\n"
+            "1. Создайте нового бота через @BotFather\n"
+            "2. Получите новый токен бота\n"
+            "3. Отправьте токен сюда\n\n"
+            "После проверки токена вы сможете выбрать:\n"
+            "• Запустить клон в текущем процессе\n"
+            "• Создать файлы для отдельного запуска\n\n"
+            "Отправьте новый токен сообщением 💬",
+            reply_markup=kb.as_markup()
+        )
+        await callback.answer()
+
+    # Let's also add the overwrite_clone method that was referenced earlier
+    async def overwrite_clone(self, callback: types.CallbackQuery):
+        """Handler for overwriting existing clone"""
+        if callback.from_user.id != self.config.owner_id:
+            return
+        
+        # Parse data: overwrite_clone_dirname_token
+        parts = callback.data.split('_', 3)
+        if len(parts) != 4:
+            await callback.answer("Ошибка в данных")
+            return
+        
+        clone_dir = parts[2]
+        new_token = parts[3]
+        
+        # Delete existing clone
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        clone_path = os.path.join(os.path.dirname(current_dir), clone_dir)
+        
+        if os.path.exists(clone_path):
+            shutil.rmtree(clone_path)
+        
+        # Perform clone
+        await self._perform_bot_clone(new_token, clone_dir, callback.message)
+        await callback.answer()
     def _setup_handlers(self):
         """Initialize message handlers with Command pattern"""
         # Admin command handlers
@@ -170,9 +680,16 @@ class ForwarderBot(CacheObserver):
             self.add_channel_submit,
             lambda message: message.from_user.id == self.awaiting_channel_input
         )
+        self.dp.message.register(
+            self.clone_bot_submit,
+            lambda message: hasattr(self, 'awaiting_clone_token') and 
+                          self.awaiting_clone_token == message.from_user.id
+        )
         # Register the direct add channel command
-        self.dp.message.register(self.add_channel_command, Command("addchannel"))
-        
+        self.dp.message.register(
+            self.add_channel_prompt,
+            Command("addchannel")
+        )        
         # Channel post handler
         self.dp.channel_post.register(self.handle_channel_post)
         
@@ -184,11 +701,17 @@ class ForwarderBot(CacheObserver):
             "interval_": self.set_interval,
             "interval_between_": self.set_interval,
             "set_interval_": self.set_interval,
+            "clone_bot": self.clone_bot_prompt,
+            "overwrite_clone_": self.overwrite_clone,
             "remove_channel_": self.remove_channel,  # Specific handler for channel removal
             "remove_": self.remove_chat,  # Handler for chat removal
             "stats": self.show_stats,
             "list_chats": self.list_chats,
             "back_to_main": self.main_menu,
+            "clone_inline_": self.clone_bot_inline,
+            "manage_clones": self.manage_clones,
+            "stop_clone_": self.stop_clone,
+            "clone_files_": self.create_clone_files,
             "channels": self.manage_channels,
             "add_channel": self.add_channel_prompt,
             "channel_intervals": self.manage_channel_intervals,
@@ -981,40 +1504,54 @@ class ForwarderBot(CacheObserver):
             self.cache_service.remove_observer(self)
             await self.bot.session.close()
 
+# Update the bottom of bot.py with proper Windows multiprocessing support
+
+# Update the main function to handle cleanup
 async def main():
-        """Main entry point with improved error handling"""
-        lock_file = "bot.lock"
-        
-        if os.path.exists(lock_file):
-            try:
-                with open(lock_file, 'r') as f:
-                    pid = int(f.read().strip())
-                
-                import psutil
-                if psutil.pid_exists(pid):
-                    logger.error(f"Another instance is running (PID: {pid})")
-                    return
-                os.remove(lock_file)
-                logger.info("Cleaned up stale lock file")
-            except Exception as e:
-                logger.warning(f"Error handling lock file: {e}")
-                os.remove(lock_file)
-
+    """Main entry point with improved error handling"""
+    lock_file = "bot.lock"
+    bot = None
+    
+    if os.path.exists(lock_file):
         try:
-            with open(lock_file, 'w') as f:
-                f.write(str(os.getpid()))
-
-            bot = ForwarderBot()
-            await bot.start()
-        finally:
-            try:
-                await Repository.close_db()  # Ensure DB is closed even if shutdown fails
+            with open(lock_file, 'r') as f:
+                pid = int(f.read().strip())
+            
+            import psutil
+            if psutil.pid_exists(pid):
+                logger.error(f"Another instance is running (PID: {pid})")
+                return
+            os.remove(lock_file)
+            logger.info("Cleaned up stale lock file")
+        except Exception as e:
+            logger.warning(f"Error handling lock file: {e}")
+            if os.path.exists(lock_file):
                 os.remove(lock_file)
-            except Exception as e:
-                logger.error(f"Failed to remove lock file: {e}")
 
-    # Update the main section at the bottom of bot.py
+    try:
+        with open(lock_file, 'w') as f:
+            f.write(str(os.getpid()))
+
+        bot = ForwarderBot()
+        await bot.start()
+    finally:
+        try:
+            if bot:
+                await bot.cleanup()  # Stop all child bots
+            await Repository.close_db()
+            if os.path.exists(lock_file):
+                os.remove(lock_file)
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+
+# Main entry point with proper Windows multiprocessing support
 if __name__ == "__main__":
+    # Set multiprocessing start method for Windows compatibility
+    if sys.platform.startswith('win'):
+        multiprocessing.set_start_method('spawn', force=True)
+    else:
+        multiprocessing.set_start_method('spawn', force=True)  # Use spawn for all platforms for consistency
+    
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
