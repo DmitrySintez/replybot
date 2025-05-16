@@ -1435,7 +1435,7 @@ python bot.py
 
     
     async def handle_channel_post(self, message: types.Message | None):
-        """Обработчик сообщений из канала - пересылает все доступные сообщения в прямом порядке"""
+        """Обработчик сообщений из канала с параллельной проверкой и последовательной отправкой"""
         if message is None:
             return
                 
@@ -1457,32 +1457,89 @@ python bot.py
         await Repository.save_last_message(chat_id, message.message_id)
         
         if isinstance(self.context.state, RunningState):
-            logger.info(f"Пересылка сообщений из канала {chat_id} во все целевые чаты")
+            # Проверяем, включена ли автопересылка
+            if not self.context.state.auto_forward:
+                logger.info(f"Получено новое сообщение из канала {chat_id}, но автопересылка отключена. Сообщение сохранено.")
+                return
+                
+            logger.info(f"Параллельная проверка и последовательная пересылка сообщений из канала {chat_id}")
             
             # Определяем диапазон ID сообщений для пересылки
             max_id = message.message_id
-            start_id = max(1, max_id - 100)  # Берем только последние ~100 сообщений
+            start_id = max(1, max_id - 10)  # Берем только последние 10 сообщений
+            
+            # Создаем список ID сообщений в порядке от старых к новым
+            message_ids = list(range(start_id, max_id + 1))
+            
+            # Инициализируем временный кэш недоступных сообщений
+            if not hasattr(self.context, '_temp_unavailable_messages'):
+                self.context._temp_unavailable_messages = {}
+            
+            # Очищаем устаревшие записи (старше 30 минут)
+            current_time = datetime.now().timestamp()
+            self.context._temp_unavailable_messages = {k: v for k, v in self.context._temp_unavailable_messages.items() 
+                                                if current_time - v < 1800}  # 30 минут
+            
+            # 1. Сначала параллельно проверяем все сообщения
+            check_tasks = []
+            for msg_id in message_ids:
+                msg_key = f"{chat_id}:{msg_id}"
+                if msg_key in self.context._temp_unavailable_messages:
+                    logger.debug(f"Пропуск недавно недоступного сообщения {msg_id} из канала {chat_id}")
+                    continue
+                
+                # Создаем задачу проверки доступности сообщения
+                check_tasks.append(self.context.state._check_message(chat_id, msg_id))
+            
+            # Запускаем все проверки параллельно
+            available_messages = []
+            if check_tasks:
+                check_results = await asyncio.gather(*check_tasks, return_exceptions=True)
+                
+                # Обрабатываем результаты проверки
+                for i, result in enumerate(check_results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Ошибка при проверке сообщения: {result}")
+                    elif isinstance(result, tuple) and len(result) == 2:
+                        success, info = result
+                        if success:
+                            # Сообщение доступно, добавляем его в список для отправки
+                            available_messages.append(info)
+                        elif 'error' in info and info['error'] == 'message_not_found':
+                            # Сообщение недоступно, добавляем в кэш недоступных
+                            msg_id = message_ids[i] if i < len(message_ids) else None
+                            if msg_id is not None:
+                                self.context._temp_unavailable_messages[f"{chat_id}:{msg_id}"] = current_time
+            
+            # 2. Теперь отправляем доступные сообщения последовательно в нужном порядке
+            # Сортируем сообщения по ID (от старых к новым)
+            available_messages.sort(key=lambda x: x['message_id'])
             
             # Счетчики для статистики
             forwarded_count = 0
+            skipped_count = len(message_ids) - len(available_messages)
             error_count = 0
             
-            # Пересылаем сообщения в прямом порядке (от старых к новым)
-            for msg_id in range(start_id, max_id + 1):  # Прямой порядок
+            # Отправляем сообщения последовательно
+            for message_info in available_messages:
+                channel_id = message_info['channel_id']
+                msg_id = message_info['message_id']
+                
                 try:
-                    success = await self.context._forward_message(chat_id, msg_id)
+                    success = await self.context.state._forward_specific_message(channel_id, msg_id)
                     if success:
                         forwarded_count += 1
                     else:
-                        error_count += 1
-                    # Небольшая задержка между запросами
-                    await asyncio.sleep(0.1)
+                        skipped_count += 1
                 except Exception as e:
                     error_count += 1
-                    if "message to forward not found" not in str(e) and "message can't be forwarded" not in str(e):
-                        logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {chat_id}: {e}")
+                    logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {channel_id}: {e}")
             
-            logger.info(f"Пересылка сообщений из канала {chat_id} завершена: переслано {forwarded_count}, ошибок {error_count}")
+            logger.info(f"Пересылка сообщений из канала {chat_id} завершена: переслано {forwarded_count}, пропущено {skipped_count}, ошибок {error_count}")
+            
+            # Обновляем время последней пересылки для этого канала в RunningState
+            if hasattr(self.context.state, '_channel_last_post'):
+                self.context.state._channel_last_post[chat_id] = datetime.now().timestamp()
         else:
             logger.info("Бот не запущен, игнорирую сообщение")
 

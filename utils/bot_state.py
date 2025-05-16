@@ -96,39 +96,77 @@ class RunningState(BotState):
 # для пересылки в прямом порядке
 
     async def handle_message(self, channel_id: str, message_id: int) -> None:
-        """Обрабатывает пересылку сообщений - теперь пересылает в прямом порядке"""
-        if self.auto_forward:
-            # Определяем диапазон ID сообщений для пересылки
-            max_id = message_id
-            start_id = max(1, max_id - 100)  # Берем только последние ~100 сообщений
+        """Обрабатывает пересылку сообщений с учетом настроек автопересылки и правильным порядком"""
+        # Проверяем, включена ли автопересылка
+        if not self.auto_forward:
+            logger.info(f"Получена команда пересылки сообщения {message_id} из канала {channel_id}, но автопересылка отключена")
+            return
+        
+        # Инициализируем временный кэш недоступных сообщений, если он не существует
+        if not hasattr(self.context, '_temp_unavailable_messages'):
+            self.context._temp_unavailable_messages = {}
+        
+        # Очищаем устаревшие записи (старше 30 минут)
+        current_time = datetime.now().timestamp()
+        self.context._temp_unavailable_messages = {k: v for k, v in self.context._temp_unavailable_messages.items() 
+                                            if current_time - v < 1800}  # 30 минут
+        
+        # Определяем диапазон ID сообщений для пересылки
+        max_id = message_id
+        start_id = max(1, max_id - 10)  # Берем только последние 10 сообщений
+        
+        # Создаем список ID сообщений в обратном порядке (от новых к старым)
+        message_ids = list(range(start_id, max_id + 1))
+        message_ids.reverse()  # Переворачиваем список, чтобы начать с самых новых сообщений
+        
+        logger.info(f"Одновременная пересылка сообщений из канала {channel_id} (от новых к старым)")
+        
+        # Счетчики для статистики
+        forwarded_count = 0
+        skipped_count = 0
+        error_count = 0
+        
+        # Создаем список задач для параллельной отправки
+        tasks = []
+        for msg_id in message_ids:
+            msg_key = f"{channel_id}:{msg_id}"
+            if msg_key in self.context._temp_unavailable_messages:
+                logger.debug(f"Пропуск недавно недоступного сообщения {msg_id} из канала {channel_id}")
+                skipped_count += 1
+                continue
             
-            logger.info(f"Пересылка сообщений из канала {channel_id} ({start_id}-{max_id}) в прямом порядке")
-            
-            # Счетчики для статистики
-            forwarded_count = 0
-            error_count = 0
-            
-            # Пересылаем доступные сообщения в прямом порядке (от старых к новым)
-            for msg_id in range(start_id, max_id + 1):  # Прямой порядок
+            # Создаем асинхронную задачу
+            async def forward_task(msg_id):
                 try:
-                    success = await self.context._forward_message(channel_id, msg_id)
-                    if success:
-                        forwarded_count += 1
-                    else:
-                        error_count += 1
-                    # Небольшая задержка между запросами
-                    await asyncio.sleep(0.1)
+                    return await self.context._forward_message(channel_id, msg_id)
                 except Exception as e:
-                    error_count += 1
-                    if "message to forward not found" not in str(e) and "message can't be forwarded" not in str(e):
+                    error_text = str(e).lower()
+                    if "message to forward not found" in error_text or "message can't be forwarded" in error_text:
+                        # Добавляем в кэш недоступных сообщений
+                        self.context._temp_unavailable_messages[f"{channel_id}:{msg_id}"] = current_time
+                    
+                    if "message to forward not found" not in error_text and "message can't be forwarded" not in error_text:
                         logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {channel_id}: {e}")
+                    
+                    return False
             
-            # Обновляем время последней пересылки для этого канала
-            self._channel_last_post[channel_id] = datetime.now().timestamp()
+            tasks.append(forward_task(msg_id))
+        
+        # Запускаем все задачи одновременно
+        if tasks:
+            results = await asyncio.gather(*tasks)
             
-            logger.info(f"Пересылка сообщений из канала {channel_id} завершена: переслано {forwarded_count}, ошибок {error_count}")
-        else:
-            logger.info("Автопересылка отключена, пропускаем сообщение")
+            # Обрабатываем результаты
+            for success in results:
+                if success:
+                    forwarded_count += 1
+                else:
+                    error_count += 1
+        
+        logger.info(f"Пересылка сообщений из канала {channel_id} завершена: переслано {forwarded_count}, пропущено {skipped_count}, ошибок {error_count}")
+        
+        # Обновляем время последней пересылки для этого канала
+        self._channel_last_post[channel_id] = datetime.now().timestamp()
     
     async def _get_next_channel_to_repost(self):
         """Get the next channel that should be reposted based on intervals"""
@@ -175,7 +213,7 @@ class RunningState(BotState):
     # Также улучшим периодическую пересылку в методе _fallback_repost в RunningState:
 
     async def _fallback_repost(self):
-        """Periodic repost task with improved handling"""
+        """Periodic repost task with proper channel ordering and interval handling"""
         while True:
             try:
                 await asyncio.sleep(10)
@@ -186,92 +224,157 @@ class RunningState(BotState):
                     logger.warning("Нет настроенных исходных каналов")
                     continue
                 
-                # Находим каналы, готовые для пересылки
-                eligible_channels = []
-                for channel in source_channels:
-                    last_post_time = self._channel_last_post.get(channel, 0)
-                    
-                    if now - last_post_time >= self.interval:
-                        eligible_channels.append(channel)
+                # Получаем все интервалы для каналов
+                channel_intervals = await Repository.get_channel_intervals()
                 
-                if not eligible_channels:
-                    continue
-                    
-                next_channel = None
-                
-                # Логика выбора следующего канала для пересылки
+                # Если предыдущий канал не определен, начинаем с первого канала
                 if self._last_processed_channel is None:
-                    next_channel = eligible_channels[0]
-                    logger.debug(f"Первый запуск, выбран канал {next_channel}")
+                    next_channel = source_channels[0]
+                 #   logger.debug(f"Первый запуск, выбран канал {next_channel}")
                 else:
+                    next_channel = None
                     current_idx = -1
+                    
                     try:
+                        # Находим индекс последнего обработанного канала
                         current_idx = source_channels.index(self._last_processed_channel)
                     except ValueError:
-                        pass
+                        # Если канал больше не в списке, начинаем с начала
+                        current_idx = -1
                     
-                    for i in range(1, len(source_channels) + 1):
-                        next_idx = (current_idx + i) % len(source_channels)
-                        candidate = source_channels[next_idx]
+                    # Проверяем специальные интервалы между каналами
+                    if current_idx != -1:
+                        # Проверяем, есть ли настроенный интервал для последнего канала
+                        last_channel = self._last_processed_channel
                         
-                        if candidate in eligible_channels:
-                            next_channel = candidate
-                            logger.debug(f"Следующий канал {next_channel} готов для пересылки")
-                            break
-                
-                if next_channel is None:
-                    continue
+                        # Проверяем, есть ли прямое указание следующего канала через интервалы
+                        next_channel_defined = False
+                        special_interval = 0
+                        
+                        if last_channel in channel_intervals:
+                            interval_data = channel_intervals.get(last_channel, {})
+                            if interval_data.get("next_channel") in source_channels:
+                                next_defined_channel = interval_data.get("next_channel")
+                                special_interval = interval_data.get("interval", 0)
+                                
+                                # Проверяем, прошло ли достаточно времени
+                                if now - self._last_global_post_time >= special_interval:
+                                    next_channel = next_defined_channel
+                                    next_channel_defined = True
+                                    logger.debug(f"Использую настроенный следующий канал {next_channel} после {last_channel} (интервал {special_interval}с)")
+                                else:
+                                    # Интервал между каналами еще не прошел
+                                    time_left = special_interval - (now - self._last_global_post_time)
+                                    logger.debug(f"Ожидание {time_left:.1f}с для интервала между {last_channel} и {next_defined_channel}")
+                                    continue
+                        
+                        # Если нет прямого указания, следуем последовательности в списке
+                        if not next_channel_defined:
+                            # Проверим, прошел ли глобальный интервал
+                            if now - self._last_global_post_time < self.interval:
+                                time_left = self.interval - (now - self._last_global_post_time)
+                                logger.debug(f"Ожидание {time_left:.1f}с для глобального интервала пересылки")
+                                continue
+                            
+                            # Берем следующий канал по порядку
+                            next_idx = (current_idx + 1) % len(source_channels)
+                            next_channel = source_channels[next_idx]
+                            logger.debug(f"Выбран следующий канал по порядку: {next_channel}")
                     
+                    # Если next_channel все еще не определен, начинаем сначала
+                    if next_channel is None:
+                        next_channel = source_channels[0]
+                        logger.debug(f"Начинаем цикл заново с канала {next_channel}")
+                
+                # Проверяем время последней пересылки для выбранного канала
+                last_post_time = self._channel_last_post.get(next_channel, 0)
+                if now - last_post_time < self.interval:
+                    # Для этого канала еще не прошел интервал пересылки
+                    continue
+                
                 # Получаем ID последнего сообщения в канале
                 message_id = await Repository.get_last_message(next_channel)
 
                 if not message_id:
                     logger.warning(f"Не найдено сообщение для канала {next_channel}")
                     
-                    latest_id = await self.context.find_latest_message(next_channel)
-                    if latest_id:
-                        message_id = latest_id
-                        await Repository.save_last_message(next_channel, latest_id)
-                    else:
+                    try:
+                        latest_id = await self.context.find_latest_message(next_channel)
+                        if latest_id:
+                            message_id = latest_id
+                            await Repository.save_last_message(next_channel, latest_id)
+                        else:
+                            self._channel_last_post[next_channel] = now
+                            continue
+                    except Exception as e:
+                        logger.error(f"Ошибка при поиске последнего сообщения: {e}")
                         self._channel_last_post[next_channel] = now
                         continue
 
                 # Определяем диапазон ID сообщений для пересылки
                 max_id = message_id
-                start_id = max(1, max_id - 100)  # Берем только последние ~100 сообщений
-
-                logger.info(f"Пересылка сообщений из канала {next_channel} ({start_id}-{max_id}) в прямом порядке")
-
+                start_id = max(1, max_id - 10)  # Берем только последние 10 сообщений
+                
+                # Создаем список ID сообщений в обратном порядке (от новых к старым)
+                message_ids = list(range(start_id, max_id + 1))
+                message_ids.reverse()  # Переворачиваем список для пересылки от новых к старым
+                
+                # Инициализируем временный кэш недоступных сообщений
+                if not hasattr(self.context, '_temp_unavailable_messages'):
+                    self.context._temp_unavailable_messages = {}
+                
+                # Очищаем устаревшие записи (старше 30 минут)
+                current_time = now
+                self.context._temp_unavailable_messages = {k: v for k, v in self.context._temp_unavailable_messages.items() 
+                                                    if current_time - v < 1800}  # 30 минут
+                
+                logger.info(f"Пересылка сообщений из канала {next_channel} (от новых к старым)")
+                
                 # Счетчики для статистики
                 forwarded_count = 0
+                skipped_count = 0
                 error_count = 0
-
-                # Пересылаем доступные сообщения в прямом порядке (от старых к новым)
-                for msg_id in range(start_id, max_id + 1):  # Прямой порядок
-                    try:
-                        success = await self.context._forward_message(next_channel, msg_id)
-                        if success:
+                
+                # Создаем список задач для параллельной отправки
+                tasks = []
+                for msg_id in message_ids:
+                    msg_key = f"{next_channel}:{msg_id}"
+                    if msg_key in self.context._temp_unavailable_messages:
+                        logger.debug(f"Пропуск недавно недоступного сообщения {msg_id} из канала {next_channel}")
+                        skipped_count += 1
+                        continue
+                    
+                    # Создаем асинхронную задачу для текущего ID сообщения
+                    tasks.append(self._create_forward_task(next_channel, msg_id, current_time))
+                
+                # Запускаем все задачи одновременно
+                if tasks:
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    # Обрабатываем результаты
+                    for result in results:
+                        if isinstance(result, Exception):
+                            error_count += 1
+                            logger.error(f"Ошибка при пересылке из канала {next_channel}: {result}")
+                        elif isinstance(result, tuple) and len(result) == 2:
+                            status, _ = result
+                            if status:
+                                forwarded_count += 1
+                            else:
+                                skipped_count += 1
+                        elif result is True:
                             forwarded_count += 1
                         else:
-                            error_count += 1
-                        # Небольшая задержка между запросами
-                        await asyncio.sleep(0.1)
-                    except Exception as e:
-                        error_count += 1
-                        if "message to forward not found" not in str(e) and "message can't be forwarded" not in str(e):
-                            logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {next_channel}: {e}")
-
+                            skipped_count += 1
+                
                 # Обновляем время последней пересылки
                 now = datetime.now().timestamp()
                 self._channel_last_post[next_channel] = now
                 self._last_global_post_time = now
                 self._last_processed_channel = next_channel
-
-                next_global_time = now + self.interval
-                next_time_str = datetime.fromtimestamp(next_global_time).strftime('%H:%M:%S')
-
-                minutes = self.interval // 60
-                logger.info(f"Переслано {forwarded_count} сообщений из канала {next_channel} (ошибок: {error_count}). Следующая пересылка через {minutes} минут (в {next_time_str}).")
+                
+                # Логируем результаты и предсказываем следующую пересылку
+                self._log_forwarding_results(next_channel, forwarded_count, skipped_count, error_count, channel_intervals)
                 
             except asyncio.CancelledError:
                 logger.info("Задача рассылки отменена")
@@ -279,6 +382,79 @@ class RunningState(BotState):
             except Exception as e:
                 logger.error(f"Ошибка в периодической рассылке: {e}")
                 await asyncio.sleep(60)
+
+    # Добавляем вспомогательные методы для улучшения структуры кода
+    async def _create_forward_task(self, channel_id, msg_id, current_time):
+        """Создает задачу для пересылки одного сообщения"""
+        try:
+            success = await self.context._forward_message(channel_id, msg_id)
+            return (success, msg_id)
+        except Exception as e:
+            error_text = str(e).lower()
+            if "message to forward not found" in error_text or "message can't be forwarded" in error_text:
+                # Добавляем в кэш недоступных сообщений
+                self.context._temp_unavailable_messages[f"{channel_id}:{msg_id}"] = current_time
+            
+            if "message to forward not found" not in error_text and "message can't be forwarded" not in error_text:
+                logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {channel_id}: {e}")
+            
+            return (False, msg_id)
+
+    def _log_forwarding_results(self, channel, forwarded_count, skipped_count, error_count, channel_intervals):
+        """Логирует результаты пересылки и предсказывает следующую пересылку"""
+        now = datetime.now().timestamp()
+        source_channels = self.context.config.source_channels
+        
+        # Находим индекс текущего канала
+        try:
+            current_idx = source_channels.index(channel)
+        except ValueError:
+            current_idx = -1
+        
+        # Определяем следующий канал по порядку
+        next_channel = None
+        next_interval = self.interval
+        next_time_str = "неизвестно"
+        
+        # Проверяем специальный интервал для текущего канала
+        if channel in channel_intervals:
+            interval_data = channel_intervals.get(channel, {})
+            next_defined = interval_data.get("next_channel")
+            if next_defined in source_channels:
+                next_channel = next_defined
+                next_interval = interval_data.get("interval", self.interval)
+        
+        # Если нет специального интервала, берем следующий канал по порядку
+        if next_channel is None and current_idx != -1:
+            next_idx = (current_idx + 1) % len(source_channels)
+            next_channel = source_channels[next_idx]
+        
+        # Рассчитываем время следующей пересылки
+        next_time = now + next_interval
+        next_time_str = datetime.fromtimestamp(next_time).strftime('%H:%M:%S')
+        
+        # Форматируем интервал для вывода
+        if next_interval >= 3600:
+            interval_display = f"{next_interval // 3600}ч"
+        else:
+            interval_display = f"{next_interval // 60}м"
+        
+        logger.info(f"Переслано {forwarded_count} сообщений из канала {channel} (пропущено: {skipped_count}, ошибок: {error_count}). "
+                f"Следующий канал {next_channel} через {interval_display} (в {next_time_str}).")
+
+    # Добавим вспомогательный метод для работы с задачами пересылки
+    async def _forward_message_task(self, channel_id, message_id, timestamp):
+        """Вспомогательный метод для асинхронной пересылки сообщений"""
+        try:
+            success = await self.context._forward_message(channel_id, message_id)
+            return (success, message_id)
+        except Exception as e:
+            # Если сообщение недоступно, добавляем его в кэш
+            error_text = str(e).lower()
+            if "message to forward not found" in error_text or "message can't be forwarded" in error_text:
+                msg_key = f"{channel_id}:{message_id}"
+                self.context._temp_unavailable_messages[msg_key] = timestamp
+            raise e
                 
 class BotContext:
     """Context class that maintains current bot state"""
@@ -297,12 +473,8 @@ class BotContext:
     async def handle_message(self, channel_id: str, message_id: int) -> None:
         await self.state.handle_message(channel_id, message_id)
     
-    
-    # Улучшим метод _forward_message в классе BotContext в файле utils/bot_state.py
-# для большей надежности пересылки:
-
     async def _forward_message(self, channel_id: str, message_id: int) -> bool:
-        """Forward a message to all target chats with improved reliability"""
+        """Forward a message to all target chats with improved reliability and speed"""
         success = False
         target_chats = await Repository.get_target_chats()
         
@@ -310,35 +482,36 @@ class BotContext:
             logger.warning("Нет целевых чатов для пересылки")
             return False
 
-        # Проверяем существование сообщения перед пересылкой
+        # Используем временный кэш недоступных сообщений только для текущей сессии
+        # с ограниченным временем жизни (30 минут)
+        current_time = datetime.now().timestamp()
+        if not hasattr(self, '_temp_unavailable_messages'):
+            self._temp_unavailable_messages = {}
+        
+        # Очищаем устаревшие записи (старше 30 минут)
+        self._temp_unavailable_messages = {k: v for k, v in self._temp_unavailable_messages.items() 
+                                        if current_time - v < 1800}  # 30 минут
+        
+        msg_key = f"{channel_id}:{message_id}"
+        if msg_key in self._temp_unavailable_messages:
+            logger.debug(f"Пропуск недавно недоступного сообщения {message_id} из канала {channel_id}")
+            return False
+
+        # Пробуем получить сообщение только один раз для всех чатов
         try:
-            # Попытка получить информацию о сообщении
             await self.bot.get_messages(channel_id, message_id)
         except Exception as e:
             if "message to forward not found" in str(e) or "message not found" in str(e):
                 logger.debug(f"Сообщение {message_id} не найдено в канале {channel_id}")
+                self._temp_unavailable_messages[msg_key] = current_time
                 return False
-            # Игнорируем ошибку, если не можем проверить сообщение,
-            # но попробуем переслать его все равно
-
+        
         for chat_id in target_chats:
             if str(chat_id) == channel_id:
                 logger.info(f"Пропускаю пересылку в исходный канал {chat_id}")
                 continue
                 
             try:
-                chat_info = await self.bot.get_chat(chat_id)
-                if chat_info.type == 'channel':
-                    logger.info(f"Пропускаю пересылку в канал {chat_id} (каналы не являются целевыми)")
-                    continue
-                
-                # Проверяем права бота в целевом чате
-                bot_member = await self.bot.get_chat_member(chat_id, self.bot.id)
-                if not any([bot_member.status == "administrator", 
-                        bot_member.status == "creator"]):
-                    logger.warning(f"У бота нет прав администратора в чате {chat_id}, пересылка может быть невозможна")
-                
-                # Пробуем переслать сообщение
                 await self.bot.forward_message(
                     chat_id=chat_id,
                     from_chat_id=channel_id,
@@ -349,16 +522,14 @@ class BotContext:
                 logger.debug(f"Сообщение {message_id} успешно переслано в {chat_id}")
             except Exception as e:
                 error_text = str(e).lower()
+                # Временно помечаем сообщение как недоступное
                 if "message to forward not found" in error_text or "message can't be forwarded" in error_text:
                     logger.debug(f"Сообщение {message_id} недоступно для пересылки в {chat_id}")
+                    self._temp_unavailable_messages[msg_key] = current_time
                 elif "bot was blocked by the user" in error_text:
                     logger.warning(f"Бот заблокирован в чате {chat_id}")
-                    # Можно удалить этот чат из целевых, чтобы не пытаться пересылать в него в будущем
-                    # await Repository.remove_target_chat(chat_id)
                 elif "chat not found" in error_text:
-                    logger.warning(f"Чат {chat_id} не найден, возможно бот был удален из группы")
-                    # Можно удалить этот чат из целевых
-                    # await Repository.remove_target_chat(chat_id)
+                    logger.warning(f"Чат {chat_id} не найден")
                 else:
                     logger.error(f"Ошибка при пересылке в {chat_id}: {e}")
 
