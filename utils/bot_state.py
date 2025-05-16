@@ -47,6 +47,7 @@ class IdleState(BotState):
 class RunningState(BotState):
     """State when bot is actively forwarding messages"""
     
+    # В класс RunningState добавим отслеживание новых сообщений, которые появились во время ожидания
     def __init__(self, bot_context, interval: int, auto_forward: bool = False):
         self.context = bot_context
         self.interval = interval  # Global repost interval
@@ -57,14 +58,16 @@ class RunningState(BotState):
         now = datetime.now().timestamp()
         self._channel_last_post = {}
         
-        # Important: Initialize all channels with current time
-        # This forces each channel to wait for the full interval before posting
+        # Initialize all channels with current time
         for channel in self.context.config.source_channels:
             self._channel_last_post[channel] = now
         
         # Initialize these attributes to track channel rotation
         self._last_processed_channel = None
         self._last_global_post_time = now
+        
+        # Добавляем структуру для отслеживания новых сообщений в период ожидания
+        self._pending_messages = {}  # Формат: {channel_id: [message_ids]}
         
         # Start the repost task
         self._start_repost_task()
@@ -212,8 +215,63 @@ class RunningState(BotState):
         
     # Также улучшим периодическую пересылку в методе _fallback_repost в RunningState:
 
+        # 1. Сначала добавим новый метод для проверки доступности сообщения без пересылки
+    async def _check_message(self, channel_id: str, message_id: int) -> tuple:
+        """
+        Упрощенная проверка доступности сообщения
+        Мы просто считаем, что сообщение существует, и будем обрабатывать ошибки при его пересылке
+        """
+        # В этом методе мы просто предполагаем, что сообщение существует
+        # Реальная проверка будет выполнена при пересылке
+        return (True, {
+            'channel_id': channel_id,
+            'message_id': message_id,
+            'check_time': datetime.now().timestamp()
+        })
+
+    # 2. Метод для пересылки конкретного сообщения во все целевые чаты
+    async def _forward_specific_message(self, channel_id: str, message_id: int) -> bool:
+        """Пересылает конкретное сообщение во все целевые чаты"""
+        success = False
+        target_chats = await Repository.get_target_chats()
+        
+        # Используем bot из контекста
+        bot = self.context.bot
+        
+        if not target_chats:
+            logger.warning("Нет целевых чатов для пересылки")
+            return False
+            
+        for chat_id in target_chats:
+            if str(chat_id) == channel_id:
+                logger.info(f"Пропускаю пересылку в исходный канал {chat_id}")
+                continue
+                
+            try:
+                await bot.forward_message(
+                    chat_id=chat_id,
+                    from_chat_id=channel_id,
+                    message_id=message_id
+                )
+                await Repository.log_forward(message_id)
+                success = True
+                logger.debug(f"Сообщение {message_id} успешно переслано в {chat_id}")
+            except Exception as e:
+                error_text = str(e).lower()
+                if "message to forward not found" in error_text or "message can't be forwarded" in error_text:
+                    logger.debug(f"Сообщение {message_id} недоступно для пересылки в {chat_id}")
+                elif "bot was blocked by the user" in error_text:
+                    logger.warning(f"Бот заблокирован в чате {chat_id}")
+                elif "chat not found" in error_text:
+                    logger.warning(f"Чат {chat_id} не найден")
+                else:
+                    logger.error(f"Ошибка при пересылке в {chat_id}: {e}")
+        
+        return success
+
+    # 3. Теперь обновляем метод _fallback_repost для использования новой логики
     async def _fallback_repost(self):
-        """Periodic repost task with proper channel ordering and interval handling"""
+        """Periodic repost task with parallel message checking but sequential sending"""
         while True:
             try:
                 await asyncio.sleep(10)
@@ -294,7 +352,7 @@ class RunningState(BotState):
                 
                 # Получаем ID последнего сообщения в канале
                 message_id = await Repository.get_last_message(next_channel)
-
+                
                 if not message_id:
                     logger.warning(f"Не найдено сообщение для канала {next_channel}")
                     
@@ -310,14 +368,36 @@ class RunningState(BotState):
                         logger.error(f"Ошибка при поиске последнего сообщения: {e}")
                         self._channel_last_post[next_channel] = now
                         continue
+                
+                pending_messages = self._pending_messages.get(next_channel, [])
+                if pending_messages:
+                    # Добавляем отложенные сообщения в диапазон для пересылки
+                    logger.info(f"Найдены отложенные сообщения для канала {next_channel}: {pending_messages}")
+                    # Определяем диапазон, включая все отложенные сообщения
+                    all_message_ids = set(pending_messages)
+                    
+                    # Добавляем стандартный диапазон
+                    max_id = message_id
+                    start_id = max(1, max_id - 10)  # Берем только последние 10 сообщений
+                    all_message_ids.update(range(start_id, max_id + 1))
+                    
+                    # Сортируем все ID в порядке возрастания (от старых к новым)
+                    message_ids = sorted(list(all_message_ids))
+                    
+                    # Очищаем список отложенных сообщений для этого канала
+                    self._pending_messages[next_channel] = []
+                else:
+                    # Стандартный диапазон ID сообщений для пересылки
+                    max_id = message_id
+                    start_id = max(1, max_id - 10)  # Берем только последние 10 сообщений
+                    message_ids = list(range(start_id, max_id + 1))
 
                 # Определяем диапазон ID сообщений для пересылки
                 max_id = message_id
                 start_id = max(1, max_id - 10)  # Берем только последние 10 сообщений
                 
-                # Создаем список ID сообщений в обратном порядке (от новых к старым)
+                # Создаем список ID сообщений в порядке от старых к новым
                 message_ids = list(range(start_id, max_id + 1))
-                message_ids.reverse()  # Переворачиваем список для пересылки от новых к старым
                 
                 # Инициализируем временный кэш недоступных сообщений
                 if not hasattr(self.context, '_temp_unavailable_messages'):
@@ -328,44 +408,67 @@ class RunningState(BotState):
                 self.context._temp_unavailable_messages = {k: v for k, v in self.context._temp_unavailable_messages.items() 
                                                     if current_time - v < 1800}  # 30 минут
                 
-                logger.info(f"Пересылка сообщений из канала {next_channel} (от новых к старым)")
+                logger.info(f"Параллельная проверка и последовательная пересылка сообщений из канала {next_channel}")
                 
-                # Счетчики для статистики
-                forwarded_count = 0
-                skipped_count = 0
-                error_count = 0
-                
-                # Создаем список задач для параллельной отправки
-                tasks = []
+                # 1. Сначала параллельно проверяем все сообщения
+                check_tasks = []
                 for msg_id in message_ids:
                     msg_key = f"{next_channel}:{msg_id}"
                     if msg_key in self.context._temp_unavailable_messages:
                         logger.debug(f"Пропуск недавно недоступного сообщения {msg_id} из канала {next_channel}")
-                        skipped_count += 1
                         continue
                     
-                    # Создаем асинхронную задачу для текущего ID сообщения
-                    tasks.append(self._create_forward_task(next_channel, msg_id, current_time))
+                    # Создаем задачу проверки доступности сообщения
+                    check_tasks.append(self._check_message(next_channel, msg_id))
                 
-                # Запускаем все задачи одновременно
-                if tasks:
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                # Запускаем все проверки параллельно
+                available_messages = []
+                if check_tasks:
+                    check_results = await asyncio.gather(*check_tasks, return_exceptions=True)
                     
-                    # Обрабатываем результаты
-                    for result in results:
+                    # Обрабатываем результаты проверки
+                    for i, result in enumerate(check_results):
                         if isinstance(result, Exception):
-                            error_count += 1
-                            logger.error(f"Ошибка при пересылке из канала {next_channel}: {result}")
+                            logger.error(f"Ошибка при проверке сообщения: {result}")
                         elif isinstance(result, tuple) and len(result) == 2:
-                            status, _ = result
-                            if status:
-                                forwarded_count += 1
-                            else:
-                                skipped_count += 1
-                        elif result is True:
+                            success, info = result
+                            if success:
+                                # Сообщение доступно, добавляем его в список для отправки
+                                available_messages.append(info)
+                            elif 'error' in info and info['error'] == 'message_not_found':
+                                # Сообщение недоступно, добавляем в кэш недоступных
+                                msg_id = message_ids[i]
+                                self.context._temp_unavailable_messages[f"{next_channel}:{msg_id}"] = current_time
+                
+                # 2. Теперь отправляем доступные сообщения последовательно в нужном порядке
+                # Сортируем сообщения по ID (от старых к новым)
+                available_messages.sort(key=lambda x: x['message_id'])
+                
+                # Счетчики для статистики
+                forwarded_count = 0
+                skipped_count = len(message_ids) - len(available_messages)
+                error_count = 0
+                
+                # Отправляем сообщения последовательно
+                for message_info in sorted(available_messages, key=lambda x: x['message_id']):
+                    channel_id = message_info['channel_id']
+                    msg_id = message_info['message_id']
+                    
+                    # Пробуем переслать сообщение
+                    success = False
+                    try:
+                        success = await self._forward_specific_message(channel_id, msg_id)
+                        if success:
                             forwarded_count += 1
                         else:
+                            # Сообщение не удалось переслать, добавляем в кэш недоступных
+                            self.context._temp_unavailable_messages[f"{channel_id}:{msg_id}"] = current_time
                             skipped_count += 1
+                    except Exception as e:
+                        error_count += 1
+                        logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {channel_id}: {e}")
+                        # Добавляем в кэш недоступных, если произошла ошибка
+                        self.context._temp_unavailable_messages[f"{channel_id}:{msg_id}"] = current_time
                 
                 # Обновляем время последней пересылки
                 now = datetime.now().timestamp()
@@ -374,7 +477,34 @@ class RunningState(BotState):
                 self._last_processed_channel = next_channel
                 
                 # Логируем результаты и предсказываем следующую пересылку
-                self._log_forwarding_results(next_channel, forwarded_count, skipped_count, error_count, channel_intervals)
+                next_global_time = now + self.interval
+                next_time_str = datetime.fromtimestamp(next_global_time).strftime('%H:%M:%S')
+                
+                # Проверяем следующий канал для логирования
+                next_channel_for_log = None
+                special_interval = 0
+                
+                if next_channel in channel_intervals:
+                    interval_data = channel_intervals.get(next_channel, {})
+                    next_defined = interval_data.get("next_channel")
+                    if next_defined in source_channels:
+                        next_channel_for_log = next_defined
+                        special_interval = interval_data.get("interval", self.interval)
+                
+                if not next_channel_for_log:
+                    current_idx = source_channels.index(next_channel)
+                    next_idx = (current_idx + 1) % len(source_channels)
+                    next_channel_for_log = source_channels[next_idx]
+                
+                # Рассчитываем время следующей пересылки
+                next_time = now + (special_interval if special_interval > 0 else self.interval)
+                next_time_str = datetime.fromtimestamp(next_time).strftime('%H:%M:%S')
+                
+                # Форматируем интервал для вывода
+                interval_display = f"{special_interval // 60}м" if special_interval > 0 else f"{self.interval // 60}м"
+                
+                logger.info(f"Переслано {forwarded_count} сообщений из канала {next_channel} (пропущено: {skipped_count}, ошибок: {error_count}). "
+                        f"Следующий канал {next_channel_for_log} через {interval_display} (в {next_time_str}).")
                 
             except asyncio.CancelledError:
                 logger.info("Задача рассылки отменена")

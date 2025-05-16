@@ -154,6 +154,7 @@ class ForwarderBot(CacheObserver):
     def is_admin(self, user_id: int) -> bool:
         """Check if user is an admin"""
         return self.config.is_admin(user_id)
+    
     async def clone_bot_prompt(self, callback: types.CallbackQuery):
         """Prompt for cloning the bot"""
         if callback.from_user.id != self.config.owner_id:
@@ -600,30 +601,6 @@ python bot.py
                 self.bot_manager.remove_bot(bot_id)
             except Exception as e:
                 logger.error(f"Error stopping bot {bot_id}: {e}")
-
-    async def clone_bot_prompt(self, callback: types.CallbackQuery):
-        """Prompt for cloning the bot"""
-        if callback.from_user.id != self.config.owner_id:
-            return
-        
-        # Set state to wait for new token
-        self.awaiting_clone_token = callback.from_user.id
-        
-        kb = InlineKeyboardBuilder()
-        kb.button(text="Отмена", callback_data="back_to_main")
-        
-        await callback.message.edit_text(
-            "🤖 Клонирование бота\n\n"
-            "1. Создайте нового бота через @BotFather\n"
-            "2. Получите новый токен бота\n"
-            "3. Отправьте токен сюда\n\n"
-            "После проверки токена вы сможете выбрать:\n"
-            "• Запустить клон в текущем процессе\n"
-            "• Создать файлы для отдельного запуска\n\n"
-            "Отправьте новый токен сообщением 💬",
-            reply_markup=kb.as_markup()
-        )
-        await callback.answer()
 
     # Let's also add the overwrite_clone method that was referenced earlier
     async def overwrite_clone(self, callback: types.CallbackQuery):
@@ -1435,7 +1412,7 @@ python bot.py
 
     
     async def handle_channel_post(self, message: types.Message | None):
-        """Обработчик сообщений из канала с параллельной проверкой и последовательной отправкой"""
+        """Обработчик сообщений из канала с учетом ожидания интервала"""
         if message is None:
             return
                 
@@ -1457,11 +1434,45 @@ python bot.py
         await Repository.save_last_message(chat_id, message.message_id)
         
         if isinstance(self.context.state, RunningState):
+            # Проверка, находимся ли мы в периоде ожидания для этого канала
+            now = datetime.now().timestamp()
+            last_post_time = self.context.state._channel_last_post.get(chat_id, 0)
+            waiting_interval = (now - last_post_time) < self.context.state.interval
+            
+            # Также проверяем специальные интервалы между каналами
+            is_next_in_sequence = False
+            if self.context.state._last_processed_channel:
+                channel_intervals = await Repository.get_channel_intervals()
+                if self.context.state._last_processed_channel in channel_intervals:
+                    interval_data = channel_intervals.get(self.context.state._last_processed_channel, {})
+                    if interval_data.get("next_channel") == chat_id:
+                        special_interval = interval_data.get("interval", 0)
+                        waiting_special = (now - self.context.state._last_global_post_time) < special_interval
+                        if not waiting_special:
+                            is_next_in_sequence = True
+            
+            # Если канал ожидает интервала или не является следующим в последовательности,
+            # просто сохраняем сообщение для будущей обработки
+            if waiting_interval and not is_next_in_sequence:
+                logger.info(f"Получено новое сообщение {message.message_id} из канала {chat_id} в период ожидания. "
+                            f"Сообщение будет обработано при следующей пересылке.")
+                
+                # Добавляем информацию в структуру ожидающих сообщений
+                if chat_id not in self.context.state._pending_messages:
+                    self.context.state._pending_messages[chat_id] = []
+                
+                # Добавляем ID сообщения, если его еще нет в списке
+                if message.message_id not in self.context.state._pending_messages[chat_id]:
+                    self.context.state._pending_messages[chat_id].append(message.message_id)
+                
+                return
+                
             # Проверяем, включена ли автопересылка
             if not self.context.state.auto_forward:
                 logger.info(f"Получено новое сообщение из канала {chat_id}, но автопересылка отключена. Сообщение сохранено.")
                 return
                 
+            # Проводим стандартную обработку, если не в периоде ожидания
             logger.info(f"Параллельная проверка и последовательная пересылка сообщений из канала {chat_id}")
             
             # Определяем диапазон ID сообщений для пересылки
