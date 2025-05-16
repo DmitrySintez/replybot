@@ -27,7 +27,7 @@ class KeyboardFactory:
         return kb.as_markup()
 
     @staticmethod
-    def create_interval_keyboard() -> Any:
+    async def create_interval_keyboard() -> Any:
         """Create interval selection keyboard"""
         kb = InlineKeyboardBuilder()
         intervals = [

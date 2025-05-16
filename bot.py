@@ -1160,9 +1160,23 @@ python bot.py
         
         # Regular global interval setting
         if data == "interval_menu":
+            # Получаем текущий интервал
+            current_interval = await Repository.get_config("repost_interval", "3600")
+            try:
+                current_seconds = int(current_interval)
+                
+                # Форматируем текущий интервал для отображения
+                if current_seconds >= 3600:
+                    current_display = f"{current_seconds // 3600}ч"
+                else:
+                    current_display = f"{current_seconds // 60}м"
+            except (ValueError, TypeError):
+                current_display = "60м"  # По умолчанию
+                
             await callback.message.edit_text(
-                "Выберите интервал повторной отправки:",
-                reply_markup=KeyboardFactory.create_interval_keyboard()
+                f"Текущий интервал: {current_display}\n\n"
+                "Выберите новый интервал повторной отправки:",
+                reply_markup=await KeyboardFactory.create_interval_keyboard()  # <-- Добавлен await здесь
             )
         elif data.startswith("interval_") and not "between" in data and not "menu" in data:
             try:
@@ -1419,30 +1433,56 @@ python bot.py
         
         await self.manage_channels(callback)
 
+    
     async def handle_channel_post(self, message: types.Message | None):
-        """Handler for channel posts"""
+        """Обработчик сообщений из канала - пересылает все доступные сообщения в прямом порядке"""
         if message is None:
             return
-            
+                
         chat_id = str(message.chat.id)
         username = message.chat.username
         source_channels = self.config.source_channels
-            
+                
         is_source = False
         for channel in source_channels:
             if channel == chat_id or (username and channel.lower() == username.lower()):
                 is_source = True
                 break
-                
+                    
         if not is_source:
             logger.info(f"Сообщение не из канала-источника: {chat_id}/{username}")
             return
         
+        # Сохраняем последний ID сообщения для канала
         await Repository.save_last_message(chat_id, message.message_id)
         
         if isinstance(self.context.state, RunningState):
-            await self.context.handle_message(chat_id, message.message_id)
-            logger.info(f"Пересылка сообщения {message.message_id} из {chat_id} во все целевые чаты")
+            logger.info(f"Пересылка сообщений из канала {chat_id} во все целевые чаты")
+            
+            # Определяем диапазон ID сообщений для пересылки
+            max_id = message.message_id
+            start_id = max(1, max_id - 100)  # Берем только последние ~100 сообщений
+            
+            # Счетчики для статистики
+            forwarded_count = 0
+            error_count = 0
+            
+            # Пересылаем сообщения в прямом порядке (от старых к новым)
+            for msg_id in range(start_id, max_id + 1):  # Прямой порядок
+                try:
+                    success = await self.context._forward_message(chat_id, msg_id)
+                    if success:
+                        forwarded_count += 1
+                    else:
+                        error_count += 1
+                    # Небольшая задержка между запросами
+                    await asyncio.sleep(0.1)
+                except Exception as e:
+                    error_count += 1
+                    if "message to forward not found" not in str(e) and "message can't be forwarded" not in str(e):
+                        logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {chat_id}: {e}")
+            
+            logger.info(f"Пересылка сообщений из канала {chat_id} завершена: переслано {forwarded_count}, ошибок {error_count}")
         else:
             logger.info("Бот не запущен, игнорирую сообщение")
 

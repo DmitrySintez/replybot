@@ -67,7 +67,7 @@ class Repository:
         """Close all database connections"""
         await DatabaseConnectionPool.close_all()
     
-    # Add to Repository.init_db()
+    @staticmethod
     async def init_db() -> None:
         """Initialize database schema"""
         async with DatabaseConnectionPool.get_connection() as db:
@@ -93,7 +93,7 @@ class Repository:
                 CREATE TABLE IF NOT EXISTS channel_intervals (
                     channel_id TEXT PRIMARY KEY,
                     next_channel_id TEXT,
-                    interval_seconds INTEGER DEFAULT 300,
+                    interval_seconds INTEGER DEFAULT 900,  /* 15 минут по умолчанию */
                     FOREIGN KEY(channel_id) REFERENCES last_messages(channel_id) ON DELETE CASCADE,
                     FOREIGN KEY(next_channel_id) REFERENCES last_messages(channel_id) ON DELETE SET NULL
                 );

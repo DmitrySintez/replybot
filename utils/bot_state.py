@@ -90,11 +90,43 @@ class RunningState(BotState):
         self.context.state = IdleState(self.context, self.auto_forward)
         await self.context._notify_admins("Бот остановил пересылку")
     
+    # Также модифицируем метод handle_message в классе RunningState в файле utils/bot_state.py
+
+    # Также модифицируем метод handle_message в классе RunningState в файле utils/bot_state.py
+# для пересылки в прямом порядке
+
     async def handle_message(self, channel_id: str, message_id: int) -> None:
+        """Обрабатывает пересылку сообщений - теперь пересылает в прямом порядке"""
         if self.auto_forward:
-            await self.context._forward_message(channel_id, message_id)
-            # Update last post time for this channel
+            # Определяем диапазон ID сообщений для пересылки
+            max_id = message_id
+            start_id = max(1, max_id - 100)  # Берем только последние ~100 сообщений
+            
+            logger.info(f"Пересылка сообщений из канала {channel_id} ({start_id}-{max_id}) в прямом порядке")
+            
+            # Счетчики для статистики
+            forwarded_count = 0
+            error_count = 0
+            
+            # Пересылаем доступные сообщения в прямом порядке (от старых к новым)
+            for msg_id in range(start_id, max_id + 1):  # Прямой порядок
+                try:
+                    success = await self.context._forward_message(channel_id, msg_id)
+                    if success:
+                        forwarded_count += 1
+                    else:
+                        error_count += 1
+                    # Небольшая задержка между запросами
+                    await asyncio.sleep(0.1)
+                except Exception as e:
+                    error_count += 1
+                    if "message to forward not found" not in str(e) and "message can't be forwarded" not in str(e):
+                        logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {channel_id}: {e}")
+            
+            # Обновляем время последней пересылки для этого канала
             self._channel_last_post[channel_id] = datetime.now().timestamp()
+            
+            logger.info(f"Пересылка сообщений из канала {channel_id} завершена: переслано {forwarded_count}, ошибок {error_count}")
         else:
             logger.info("Автопересылка отключена, пропускаем сообщение")
     
@@ -140,8 +172,10 @@ class RunningState(BotState):
             logger.error(f"Error getting channel pair interval: {e}")
             return None
         
+    # Также улучшим периодическую пересылку в методе _fallback_repost в RunningState:
+
     async def _fallback_repost(self):
-        """Periodic repost task with proper interval handling for all channels"""
+        """Periodic repost task with improved handling"""
         while True:
             try:
                 await asyncio.sleep(10)
@@ -152,6 +186,7 @@ class RunningState(BotState):
                     logger.warning("Нет настроенных исходных каналов")
                     continue
                 
+                # Находим каналы, готовые для пересылки
                 eligible_channels = []
                 for channel in source_channels:
                     last_post_time = self._channel_last_post.get(channel, 0)
@@ -164,6 +199,7 @@ class RunningState(BotState):
                     
                 next_channel = None
                 
+                # Логика выбора следующего канала для пересылки
                 if self._last_processed_channel is None:
                     next_channel = eligible_channels[0]
                     logger.debug(f"Первый запуск, выбран канал {next_channel}")
@@ -179,20 +215,16 @@ class RunningState(BotState):
                         candidate = source_channels[next_idx]
                         
                         if candidate in eligible_channels:
-                            pair_interval = await self._get_channel_pair_interval(
-                                self._last_processed_channel, candidate
-                            ) or 300
-                            
-                            if now - self._last_global_post_time >= pair_interval:
-                                next_channel = candidate
-                                logger.debug(f"Следующий канал {next_channel} готов после интервала пары")
-                                break
+                            next_channel = candidate
+                            logger.debug(f"Следующий канал {next_channel} готов для пересылки")
+                            break
                 
                 if next_channel is None:
                     continue
                     
+                # Получаем ID последнего сообщения в канале
                 message_id = await Repository.get_last_message(next_channel)
-                
+
                 if not message_id:
                     logger.warning(f"Не найдено сообщение для канала {next_channel}")
                     
@@ -203,21 +235,43 @@ class RunningState(BotState):
                     else:
                         self._channel_last_post[next_channel] = now
                         continue
-                
-                logger.info(f"Попытка пересылки сообщения {message_id} из канала {next_channel}")
-                success = await self.context._forward_message(next_channel, message_id)
-                
-                if success:
-                    now = datetime.now().timestamp()
-                    self._channel_last_post[next_channel] = now
-                    self._last_global_post_time = now
-                    self._last_processed_channel = next_channel
-                    
-                    next_global_time = now + self.interval
-                    next_time_str = datetime.fromtimestamp(next_global_time).strftime('%H:%M:%S')
-                    
-                    minutes = self.interval // 60
-                    logger.info(f"Переслано из канала {next_channel}. Следующая пересылка из этого канала через {minutes} минут (в {next_time_str}).")
+
+                # Определяем диапазон ID сообщений для пересылки
+                max_id = message_id
+                start_id = max(1, max_id - 100)  # Берем только последние ~100 сообщений
+
+                logger.info(f"Пересылка сообщений из канала {next_channel} ({start_id}-{max_id}) в прямом порядке")
+
+                # Счетчики для статистики
+                forwarded_count = 0
+                error_count = 0
+
+                # Пересылаем доступные сообщения в прямом порядке (от старых к новым)
+                for msg_id in range(start_id, max_id + 1):  # Прямой порядок
+                    try:
+                        success = await self.context._forward_message(next_channel, msg_id)
+                        if success:
+                            forwarded_count += 1
+                        else:
+                            error_count += 1
+                        # Небольшая задержка между запросами
+                        await asyncio.sleep(0.1)
+                    except Exception as e:
+                        error_count += 1
+                        if "message to forward not found" not in str(e) and "message can't be forwarded" not in str(e):
+                            logger.error(f"Ошибка при пересылке сообщения {msg_id} из канала {next_channel}: {e}")
+
+                # Обновляем время последней пересылки
+                now = datetime.now().timestamp()
+                self._channel_last_post[next_channel] = now
+                self._last_global_post_time = now
+                self._last_processed_channel = next_channel
+
+                next_global_time = now + self.interval
+                next_time_str = datetime.fromtimestamp(next_global_time).strftime('%H:%M:%S')
+
+                minutes = self.interval // 60
+                logger.info(f"Переслано {forwarded_count} сообщений из канала {next_channel} (ошибок: {error_count}). Следующая пересылка через {minutes} минут (в {next_time_str}).")
                 
             except asyncio.CancelledError:
                 logger.info("Задача рассылки отменена")
@@ -244,14 +298,28 @@ class BotContext:
         await self.state.handle_message(channel_id, message_id)
     
     
+    # Улучшим метод _forward_message в классе BotContext в файле utils/bot_state.py
+# для большей надежности пересылки:
+
     async def _forward_message(self, channel_id: str, message_id: int) -> bool:
-        """Forward a message to all target chats (groups/supergroups, not channels)"""
+        """Forward a message to all target chats with improved reliability"""
         success = False
         target_chats = await Repository.get_target_chats()
         
         if not target_chats:
             logger.warning("Нет целевых чатов для пересылки")
             return False
+
+        # Проверяем существование сообщения перед пересылкой
+        try:
+            # Попытка получить информацию о сообщении
+            await self.bot.get_messages(channel_id, message_id)
+        except Exception as e:
+            if "message to forward not found" in str(e) or "message not found" in str(e):
+                logger.debug(f"Сообщение {message_id} не найдено в канале {channel_id}")
+                return False
+            # Игнорируем ошибку, если не можем проверить сообщение,
+            # но попробуем переслать его все равно
 
         for chat_id in target_chats:
             if str(chat_id) == channel_id:
@@ -263,7 +331,14 @@ class BotContext:
                 if chat_info.type == 'channel':
                     logger.info(f"Пропускаю пересылку в канал {chat_id} (каналы не являются целевыми)")
                     continue
-                    
+                
+                # Проверяем права бота в целевом чате
+                bot_member = await self.bot.get_chat_member(chat_id, self.bot.id)
+                if not any([bot_member.status == "administrator", 
+                        bot_member.status == "creator"]):
+                    logger.warning(f"У бота нет прав администратора в чате {chat_id}, пересылка может быть невозможна")
+                
+                # Пробуем переслать сообщение
                 await self.bot.forward_message(
                     chat_id=chat_id,
                     from_chat_id=channel_id,
@@ -271,9 +346,21 @@ class BotContext:
                 )
                 await Repository.log_forward(message_id)
                 success = True
-                logger.info(f"Переслано в {chat_id}")
+                logger.debug(f"Сообщение {message_id} успешно переслано в {chat_id}")
             except Exception as e:
-                logger.error(f"Ошибка при пересылке в {chat_id}: {e}")
+                error_text = str(e).lower()
+                if "message to forward not found" in error_text or "message can't be forwarded" in error_text:
+                    logger.debug(f"Сообщение {message_id} недоступно для пересылки в {chat_id}")
+                elif "bot was blocked by the user" in error_text:
+                    logger.warning(f"Бот заблокирован в чате {chat_id}")
+                    # Можно удалить этот чат из целевых, чтобы не пытаться пересылать в него в будущем
+                    # await Repository.remove_target_chat(chat_id)
+                elif "chat not found" in error_text:
+                    logger.warning(f"Чат {chat_id} не найден, возможно бот был удален из группы")
+                    # Можно удалить этот чат из целевых
+                    # await Repository.remove_target_chat(chat_id)
+                else:
+                    logger.error(f"Ошибка при пересылке в {chat_id}: {e}")
 
         return success
     
