@@ -688,6 +688,8 @@ python bot.py
             "clone_inline_": self.clone_bot_inline,
             "manage_clones": self.manage_clones,
             "stop_clone_": self.stop_clone,
+            "reorder_channels": self.reorder_channels,
+            "move_": self.move_channel,  # общий префикс для move_up_/move_down_
             "clone_files_": self.create_clone_files,
             "channels": self.manage_channels,
             "add_channel": self.add_channel_prompt,
@@ -703,6 +705,67 @@ python bot.py
         
         # Handler for bot being added to chats
         self.dp.my_chat_member.register(self.handle_chat_member)
+    async def reorder_channels(self, callback: types.CallbackQuery):
+        """Переход в режим сортировки каналов"""
+        if not self.is_admin(callback.from_user.id):
+            return
+
+        channels = self.config.source_channels
+        kb = InlineKeyboardBuilder()
+        # Для каждого канала показываем ↑ и ↓
+        for i, ch in enumerate(channels):
+            # Получаем читаемое название
+            try:
+                title = (await self.bot.get_chat(ch)).title or ch
+            except:
+                title = ch
+            kb.button(
+                text=f"↑ {title}", 
+                callback_data=f"move_up_{ch}"
+            )
+            kb.button(
+                text=f"↓ {title}", 
+                callback_data=f"move_down_{ch}"
+            )
+        # Кнопки подтвердить или отменить
+        kb.button(text="Готово",    callback_data="channels")
+        kb.button(text="Отменить",  callback_data="channels")
+        kb.adjust(2)
+        await callback.message.edit_text(
+            "Измените порядок каналов, перемещая их вверх/вниз:",
+            reply_markup=kb.as_markup()
+        )
+        await callback.answer()
+
+    async def move_channel(self, callback: types.CallbackQuery):
+        """Обработчик кнопок ↑ и ↓: меняет порядок каналов"""
+        if not self.is_admin(callback.from_user.id):
+            return
+
+        data = callback.data  # e.g. "move_up_-1001234567890"
+        parts = data.split("_", 2)
+        direction, channel = parts[1], parts[2]
+        lst = self.config.source_channels
+
+        try:
+            idx = lst.index(channel)
+        except ValueError:
+            await callback.answer("Канал не найден")
+            return
+
+        if direction == "up" and idx > 0:
+            lst[idx], lst[idx-1] = lst[idx-1], lst[idx]
+        elif direction == "down" and idx < len(lst)-1:
+            lst[idx], lst[idx+1] = lst[idx+1], lst[idx]
+        else:
+            await callback.answer("Двигается за пределы списка")
+            return
+
+        # Сохраняем новый порядок
+        self.config._save_channels_to_config()
+
+        # Обновляем интерфейс сортировки
+        await self.reorder_channels(callback)
 
     async def find_latest_message(self, channel_id: str) -> Optional[int]:
         """Helper method to find the latest valid message ID in a channel"""

@@ -94,8 +94,11 @@ class KeyboardFactory:
 
     @staticmethod
     def create_channel_management_keyboard(channels: List[str]) -> Any:
-        """Create channel management keyboard"""
+        """Create channel management keyboard, now with reorder option"""
         kb = InlineKeyboardBuilder()
+        # Новая кнопка для перехода в режим сортировки
+        kb.button(text="↕️ Изменить порядок", callback_data="reorder_channels")
+        # Существующая кнопка добавления
         kb.button(text="➕ Добавить канал", callback_data="add_channel")
         
         if len(channels) >= 2:
