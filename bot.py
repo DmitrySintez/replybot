@@ -680,8 +680,11 @@ python bot.py
             "set_interval_": self.set_interval,
             "clone_bot": self.clone_bot_prompt,
             "overwrite_clone_": self.overwrite_clone,
-            "remove_channel_": self.remove_channel,  # Specific handler for channel removal
-            "remove_": self.remove_chat,  # Handler for chat removal
+            "remove_channel_menu": self.remove_channel_menu,
+            "remove_channel_page_": self.remove_channel_menu,  # Для пагинации удаления
+            "remove_channel_": self.remove_channel,  # Прямое удаление без подтверждения
+            "channel_intervals_page_": self.manage_channel_intervals,  # Для пагинации интервалов
+            "remove_": self.remove_chat,  # Для удаления чатов (не каналов)
             "stats": self.show_stats,
             "list_chats": self.list_chats,
             "back_to_main": self.main_menu,
@@ -705,6 +708,7 @@ python bot.py
         
         # Handler for bot being added to chats
         self.dp.my_chat_member.register(self.handle_chat_member)
+        
     async def reorder_channels(self, callback: types.CallbackQuery):
         """Переход в режим сортировки каналов"""
         if not self.is_admin(callback.from_user.id):
@@ -1007,9 +1011,51 @@ python bot.py
             )
         )
         await callback.answer()
-
+    async def remove_channel_menu(self, callback: types.CallbackQuery):
+        """Show channel removal menu with pagination"""
+        if not self.is_admin(callback.from_user.id):
+            return
+        
+        source_channels = self.config.source_channels
+        page = 0
+        
+        # Определяем страницу из callback_data
+        if callback.data.startswith("remove_channel_page_"):
+            try:
+                page = int(callback.data.split("_")[-1])
+            except (ValueError, IndexError):
+                page = 0
+        
+        if not source_channels:
+            await callback.message.edit_text(
+                "❌ Нет каналов для удаления.",
+                reply_markup=InlineKeyboardBuilder().button(
+                    text="🔙 К каналам", callback_data="channels"
+                ).as_markup()
+            )
+            await callback.answer()
+            return
+        
+        # Создаем информационный текст
+        text = f"❌ Удаление каналов\n\nВсего каналов: {len(source_channels)}\n\n"
+        text += "Выберите канал для удаления:"
+        
+        # Получаем информацию о каналах для создания клавиатуры
+        channel_info = {}
+        for channel in source_channels:
+            try:
+                chat = await self.bot.get_chat(channel)
+                channel_info[channel] = chat.title or channel
+            except Exception:
+                channel_info[channel] = channel
+        
+        await callback.message.edit_text(
+            text,
+            reply_markup=KeyboardFactory.create_channel_removal_keyboard(source_channels, page, channel_info)
+        )
+        await callback.answer()
     async def manage_channel_intervals(self, callback: types.CallbackQuery):
-        """Manager for channel intervals"""
+        """Manager for channel intervals with pagination"""
         if callback.from_user.id != self.config.owner_id:
             return
             
@@ -1019,52 +1065,68 @@ python bot.py
             await callback.message.edit_text(
                 "Вам нужно минимум 2 канала для установки интервалов между ними.",
                 reply_markup=InlineKeyboardBuilder().button(
-                    text="Назад", callback_data="channels"
+                    text="🔙 К каналам", callback_data="channels"
                 ).as_markup()
             )
             await callback.answer()
             return
         
-        # Get current intervals from database
+        # Определяем страницу из callback_data
+        page = 0
+        if callback.data.startswith("channel_intervals_page_"):
+            try:
+                page = int(callback.data.split("_")[-1])
+            except (ValueError, IndexError):
+                page = 0
+        
+        # Получаем текущие интервалы из базы данных
         current_intervals = await Repository.get_channel_intervals()
         
-        kb = InlineKeyboardBuilder()
+        # Получаем информацию о каналах (названия)
+        channel_info = {}
+        for channel in source_channels:
+            try:
+                chat = await self.bot.get_chat(channel)
+                channel_info[channel] = chat.title or channel
+            except Exception:
+                channel_info[channel] = channel
+        
+        # Создаем текст с информацией о текущих интервалах
+        text = "⏱️ Интервалы между каналами:\n\n(Если интервал не установлен используется глобальный интервал)\n\n"
+        
+        channel_pairs = []
         for i, channel in enumerate(source_channels):
             if i < len(source_channels) - 1:
                 next_channel = source_channels[i + 1]
-                try:
-                    chat1 = await self.bot.get_chat(channel)
-                    chat2 = await self.bot.get_chat(next_channel)
-                    name1 = (chat1.title or channel)[:8]
-                    name2 = (chat2.title or next_channel)[:8]
-                except Exception:
-                    name1 = channel[:8]
-                    name2 = next_channel[:8]
+                channel_pairs.append((channel, next_channel))
                 
-                # Check if interval is set for this channel pair
+                # Получаем название каналов для отображения
+                name1 = channel_info.get(channel, channel)
+                name2 = channel_info.get(next_channel, next_channel)
+                
+                # Сокращаем названия для красивого отображения
+                display_name1 = name1[:20] + "..." if len(name1) > 20 else name1
+                display_name2 = name2[:20] + "..." if len(name2) > 20 else name2
+                
+                # Проверяем установленный интервал
                 interval_data = current_intervals.get(channel, {})
                 if interval_data.get("next_channel") == next_channel:
-                    interval_seconds = interval_data.get("interval", 300)  # Default to 5m
-                    # Format interval for display
+                    interval_seconds = interval_data.get("interval", 300)
                     if interval_seconds >= 3600:
                         interval_str = f"{interval_seconds//3600}ч"
                     else:
                         interval_str = f"{interval_seconds//60}м"
-                    button_text = f"⏱️ {name1} → {name2} ({interval_str})"
+                    text += f"• {display_name1} → {display_name2}: {interval_str}\n"
                 else:
-                    button_text = f"⏱️ {name1} → {name2} (не установлен)"
-                
-                kb.button(
-                    text=button_text,
-                    callback_data=f"interval_between_{channel}_{next_channel}"
-                )
+                    text += f"• {display_name1} → {display_name2}: не установлен\n"
         
-        kb.button(text="Назад", callback_data="channels")
-        kb.adjust(1)
+        text += f"\nВыберите пару каналов для настройки:"
         
         await callback.message.edit_text(
-            "Выберите пару каналов для установки интервала пересылки:",
-            reply_markup=kb.as_markup()
+            text,
+            reply_markup=KeyboardFactory.create_channel_interval_keyboard(
+                source_channels, page, channel_info, current_intervals
+            )
         )
         await callback.answer()
 
@@ -1455,24 +1517,41 @@ python bot.py
             logger.error(f"Failed to add channel {channel}: {e}")
 
     async def remove_channel(self, callback: types.CallbackQuery):
-        """Remove a source channel"""
+        """Remove a source channel directly without confirmation"""
         if not self.is_admin(callback.from_user.id):
             return
         
-        # Extract channel ID from callback data
+        # Извлекаем ID канала из callback_data
         if not callback.data.startswith("remove_channel_"):
             await callback.answer("Неверный формат данных")
             return
         
         channel = callback.data.replace("remove_channel_", "")
         
-        if self.config.remove_source_channel(channel):
-            await callback.answer("Канал успешно удален")
-        else:
-            await callback.answer("Не удалось удалить канал")
+        # Получаем название канала для уведомления
+        try:
+            chat = await self.bot.get_chat(channel)
+            channel_name = chat.title or channel
+        except Exception:
+            channel_name = channel
         
-        await self.manage_channels(callback)
-
+        # Сокращаем название для отображения в уведомлении
+        display_name = channel_name[:25] + "..." if len(channel_name) > 25 else channel_name
+        
+        # Удаляем канал
+        if self.config.remove_source_channel(channel):
+            # Также удаляем связанные интервалы
+            try:
+                await Repository.delete_channel_interval(channel)
+            except Exception as e:
+                logger.warning(f"Не удалось удалить интервалы для канала {channel}: {e}")
+            
+            await callback.answer(f"✅ Канал '{display_name}' удален")
+            
+            # Возвращаемся к меню удаления каналов, чтобы показать обновленный список
+            await self.remove_channel_menu(callback)
+        else:
+            await callback.answer("❌ Не удалось удалить канал")
     
     async def handle_channel_post(self, message: types.Message | None):
         """Обработчик сообщений из канала с учетом ожидания интервала"""
