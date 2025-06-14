@@ -157,7 +157,7 @@ class ForwarderBot(CacheObserver):
     
     async def clone_bot_prompt(self, callback: types.CallbackQuery):
         """Prompt for cloning the bot"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id): 
             return
         
         # Set state to wait for new token
@@ -179,10 +179,11 @@ class ForwarderBot(CacheObserver):
         )
         await callback.answer()
 
+
     # Let's also add the overwrite_clone method that was referenced earlier
     async def overwrite_clone(self, callback: types.CallbackQuery):
         """Handler for overwriting existing clone"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         # Parse data: overwrite_clone_dirname_token
@@ -204,6 +205,8 @@ class ForwarderBot(CacheObserver):
         # Perform clone
         await self._perform_bot_clone(new_token, clone_dir, callback.message)
         await callback.answer()
+
+        
     async def _perform_bot_clone(self, new_token: str, clone_dir: str, progress_msg=None):
         """Perform the actual bot cloning"""
         try:
@@ -242,15 +245,18 @@ class ForwarderBot(CacheObserver):
             
             # Create new .env file with new token
             env_content = f"""# Telegram Bot Token from @BotFather
-BOT_TOKEN={new_token}
+    BOT_TOKEN={new_token}
 
-# Your Telegram user ID (get from @userinfobot)
-OWNER_ID={self.config.owner_id}
+    # Your Telegram user ID (get from @userinfobot)
+    OWNER_ID={self.config.owner_id}
 
-# Source channel username or ID (bot must be admin)
-# Can be either numeric ID (-100...) or channel username without @
-SOURCE_CHANNEL={self.config.source_channels[0] if self.config.source_channels else ''}
-"""
+    # Admin IDs (comma separated for multiple admins)
+    ADMIN_IDS={','.join(map(str, self.config.admin_ids))}
+
+    # Source channel username or ID (bot must be admin)
+    # Can be either numeric ID (-100...) or channel username without @
+    SOURCE_CHANNEL={self.config.source_channels[0] if self.config.source_channels else ''}
+    """
             
             with open(os.path.join(clone_path, '.env'), 'w') as f:
                 f.write(env_content)
@@ -264,9 +270,9 @@ SOURCE_CHANNEL={self.config.source_channels[0] if self.config.source_channels el
             
             # Create a start script for Linux
             start_script = f"""#!/bin/bash
-cd "{clone_path}"
-python bot.py
-"""
+    cd "{clone_path}"
+    python bot.py
+    """
             
             start_script_path = os.path.join(clone_path, 'start_bot.sh')
             with open(start_script_path, 'w') as f:
@@ -277,10 +283,10 @@ python bot.py
             
             # Create Windows start script
             start_script_windows = f"""@echo off
-cd /d "{clone_path}"
-python bot.py
-pause
-"""
+    cd /d "{clone_path}"
+    python bot.py
+    pause
+    """
             
             with open(os.path.join(clone_path, 'start_bot.bat'), 'w') as f:
                 f.write(start_script_windows)
@@ -288,35 +294,37 @@ pause
             # Create README.md for the clone
             readme_content = f"""# Bot Clone: @{bot_info.username}
 
-This is a clone of the main forwarding bot.
+    This is a clone of the main forwarding bot.
 
-## Configuration
-- Bot Token: Configured in .env
-- Owner ID: {self.config.owner_id}
-- Source Channels: {', '.join(self.config.source_channels)}
+    ## Configuration
+    - Bot Token: Configured in .env
+    - Owner ID: {self.config.owner_id}
+    - Admin IDs: {', '.join(map(str, self.config.admin_ids))}
+    - Source Channels: {', '.join(self.config.source_channels)}
 
-## Running the bot
+    ## Running the bot
 
-### Linux/Mac:
-```bash
-./start_bot.sh
-```
+    ### Linux/Mac:
+    ```bash
+    ./start_bot.sh
+    ```
 
-### Windows:
-```bash
-start_bot.bat
-```
+    ### Windows:
+    ```bash
+    start_bot.bat
+    ```
 
-### Manual:
-```bash
-python bot.py
-```
+    ### Manual:
+    ```bash
+    python bot.py
+    ```
 
-## Important Notes
-- Make sure the bot is admin in all source channels
-- The bot will forward messages to the same target chats as the main bot
-- Database is separate from the main bot
-"""
+    ## Important Notes
+    - Make sure the bot is admin in all source channels
+    - The bot will forward messages to the same target chats as the main bot
+    - Database is separate from the main bot
+    - All configured admins can manage this bot clone
+    """
             
             with open(os.path.join(clone_path, 'README.md'), 'w') as f:
                 f.write(readme_content)
@@ -332,7 +340,7 @@ python bot.py
                     f"Для запуска клона:\n"
                     f"1. Перейдите в папку: {clone_path}\n"
                     f"2. Запустите: `python bot.py` или используйте скрипт start_bot.sh (Linux) / start_bot.bat (Windows)\n\n"
-                    f"Клон будет работать независимо с теми же настройками каналов."
+                    f"Клон будет работать независимо с теми же настройками каналов и администраторами."
                 )
                 
                 await progress_msg.edit_text(success_text, reply_markup=kb.as_markup())
@@ -354,7 +362,7 @@ python bot.py
 
     async def create_clone_files(self, callback: types.CallbackQuery):
         """Create clone files for separate deployment"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id): 
             return
         
         # Parse data: clone_files_token
@@ -409,7 +417,7 @@ python bot.py
         await callback.answer()
     async def clone_bot_inline(self, callback: types.CallbackQuery):
         """Run cloned bot in the same solution"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id): 
             return
         
         # Parse data: clone_inline_token
@@ -483,7 +491,7 @@ python bot.py
 
     async def manage_clones(self, callback: types.CallbackQuery):
         """Manage running bot clones"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id): 
             return
         
         bots = self.bot_manager.list_bots()
@@ -541,7 +549,7 @@ python bot.py
 
     async def stop_clone(self, callback: types.CallbackQuery):
         """Stop a running bot clone"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         bot_id = callback.data.replace("stop_clone_", "")
@@ -557,7 +565,7 @@ python bot.py
     # Update the clone_bot_submit method to provide inline option
     async def clone_bot_submit(self, message: types.Message):
         """Handler for new bot token submission"""
-        if message.from_user.id != self.config.owner_id:
+        if not self.is_admin(message.from_user.id): 
             return
         
         if not hasattr(self, 'awaiting_clone_token') or self.awaiting_clone_token != message.from_user.id:
@@ -605,7 +613,7 @@ python bot.py
     # Let's also add the overwrite_clone method that was referenced earlier
     async def overwrite_clone(self, callback: types.CallbackQuery):
         """Handler for overwriting existing clone"""
-        if callback.from_user.id != self.config.owner_id:
+        if not self.is_admin(callback.from_user.id):
             return
         
         # Parse data: overwrite_clone_dirname_token
